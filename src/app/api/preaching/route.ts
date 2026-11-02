@@ -3,12 +3,13 @@ import { getDb } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { preachingErrorResponse, sessionSchema, toInput } from "@/lib/preaching/http";
 import { createSession, listSessions } from "@/lib/preaching/service";
-import { assertCanAccessPreachingModule } from "@/lib/rbac/guards";
+import { assertCanAccessPreachingModule, territoryMapKinds } from "@/lib/rbac/guards";
 
 export async function GET() {
 	try {
-		assertCanAccessPreachingModule(await getSession());
-		return NextResponse.json({ items: await listSessions(getDb()) });
+		const session = await getSession();
+		assertCanAccessPreachingModule(session);
+		return NextResponse.json({ items: await listSessions(getDb()), mapKinds: territoryMapKinds(session) });
 	} catch (error) {
 		return preachingErrorResponse(error);
 	}

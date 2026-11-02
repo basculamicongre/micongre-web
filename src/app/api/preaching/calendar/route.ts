@@ -3,7 +3,7 @@ import { getDb } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { preachingErrorResponse } from "@/lib/preaching/http";
 import { listSessionsForCalendar } from "@/lib/preaching/service";
-import { canAccessPreachingModule } from "@/lib/rbac/guards";
+import { canAccessPreachingModule, territoryMapKinds } from "@/lib/rbac/guards";
 
 // Calendario de predicación de un mes (?month=AAAA-MM): lo puede ver cualquier persona con sesión. Quien administra el módulo
 // ve todas las salidas; los demás, solo las que les tocan (toda la congregación, su grupo o ellos).
@@ -15,7 +15,8 @@ export async function GET(request: Request) {
 		if (!/^\d{4}-\d{2}$/.test(month)) return NextResponse.json({ error: "invalid_month" }, { status: 400 });
 		const canManage = canAccessPreachingModule(session);
 		const items = await listSessionsForCalendar(getDb(), session.userId, { month, all: canManage });
-		return NextResponse.json({ items, canManage });
+		// `mapKinds`: de qué tipos de territorio puede abrir el mapa desde la tarjeta del día.
+		return NextResponse.json({ items, canManage, mapKinds: territoryMapKinds(session) });
 	} catch (error) {
 		return preachingErrorResponse(error);
 	}

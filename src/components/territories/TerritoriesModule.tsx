@@ -20,6 +20,7 @@ interface Territory {
 	kind: TerritoryKind;
 	name: string | null;
 	notes: string | null;
+	meetingPlace: string | null;
 	hasMap: boolean;
 }
 
@@ -201,6 +202,7 @@ function TerritoryFormModal({
 	const [name, setName] = useState(territory?.name ?? "");
 	const [kind, setKind] = useState<TerritoryKind>(territory?.kind ?? "general");
 	const [notes, setNotes] = useState(territory?.notes ?? "");
+	const [meetingPlace, setMeetingPlace] = useState(territory?.meetingPlace ?? "");
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -211,7 +213,7 @@ function TerritoryFormModal({
 		const response = await fetch(territory ? `/api/territories/${territory.id}` : "/api/territories", {
 			method: territory ? "PATCH" : "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ number, kind, name: name || null, notes: notes || null }),
+			body: JSON.stringify({ number, kind, name: name || null, notes: notes || null, meetingPlace: meetingPlace.trim() || null }),
 		});
 		setSaving(false);
 		if (response.ok) return onSaved();
@@ -236,6 +238,13 @@ function TerritoryFormModal({
 					<option value="general">{TERRITORY_KIND_LABEL.general}</option>
 					<option value="public_preaching">{TERRITORY_KIND_LABEL.public_preaching}</option>
 				</Select>
+				<Input
+					label="Lugar de reunión (opcional)"
+					placeholder="p. ej. Casa de la familia López, frente al parque"
+					value={meetingPlace}
+					onChange={(e) => setMeetingPlace(e.target.value)}
+					maxLength={150}
+				/>
 				<Input label="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
 				{error && <p className="text-sm text-warn">{error}</p>}
 				<div className="flex items-center justify-end gap-2">

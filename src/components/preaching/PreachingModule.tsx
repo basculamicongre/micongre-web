@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, House, MapPin, Pencil, Plus, Send, Trash2, Users, type LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, House, Map as MapIcon, MapPin, Pencil, Plus, Repeat, Send, Trash2, Users, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Chip, ChipGroup, Fab, IconButton, List, PageHeader } from "@/components/ui/Layout";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoader } from "@/components/ui/Spinner";
+import { TerritoryMapViewer } from "@/components/territories/TerritoryMapViewer";
 import { formatLongDate, formatShortDate } from "@/lib/dateFormat";
 import { TERRITORY_KIND_LABEL, type TerritoryKind } from "@/lib/territories/geo";
 
@@ -17,8 +18,9 @@ interface SessionRow {
 	time: string;
 	note: string | null;
 	kind: TerritoryKind;
+	recurring: boolean;
 	notifiedAt: string | null;
-	territories: { id: string; number: string; name: string | null }[];
+	territories: { id: string; number: string; name: string | null; meetingPlace: string | null; hasMap: boolean }[];
 	targets: { congregation: boolean; groups: { id: string; name: string; color: string | null }[]; users: { id: string; fullName: string }[] };
 }
 
@@ -91,10 +93,17 @@ export function PreachingModule() {
 		return { year: d.getFullYear(), month: d.getMonth() };
 	});
 	const [dayModal, setDayModal] = useState<string | null>(null);
+	// Tipos de territorio cuyo mapa puede abrir quien consulta, y el mapa abierto.
+	const [mapKinds, setMapKinds] = useState<TerritoryKind[]>([]);
+	const [mapFor, setMapFor] = useState<string | null>(null);
 
 	const load = useCallback(async () => {
 		const response = await fetch("/api/preaching");
-		if (response.ok) setSessions(((await response.json()) as { items: SessionRow[] }).items);
+		if (response.ok) {
+			const body = (await response.json()) as { items: SessionRow[]; mapKinds?: TerritoryKind[] };
+			setSessions(body.items);
+			setMapKinds(body.mapKinds ?? []);
+		}
 		setLoading(false);
 	}, []);
 
@@ -125,8 +134,18 @@ export function PreachingModule() {
 
 	function sessionActions(s: SessionRow) {
 		const busy = busyId === s.id;
+		const maps = mapKinds.includes(s.kind) ? s.territories.filter((t) => t.hasMap) : [];
 		return (
 			<>
+				{maps.map((t) => (
+					<IconButton
+						key={t.id}
+						label={maps.length > 1 ? `Ver mapa: ${t.name || `Territorio ${t.number}`}` : "Ver mapa"}
+						icon={MapIcon}
+						tone="accent"
+						onClick={() => setMapFor(t.id)}
+					/>
+				))}
 				<IconButton
 					label="Reenviar aviso"
 					icon={Send}
@@ -215,7 +234,6 @@ export function PreachingModule() {
 									<div className="flex items-center gap-2">
 										<Icon size={18} className="shrink-0 text-accent" aria-label={label} />
 										<span className="text-base font-semibold text-ink">{time12(s.time)}</span>
-										<span className="text-xs text-ink-soft">{label}</span>
 									</div>
 									<SessionBody s={s} />
 									<div className="mt-1 flex items-center justify-end">{sessionActions(s)}</div>
@@ -236,6 +254,8 @@ export function PreachingModule() {
 					</div>
 				</Modal>
 			)}
+
+			{mapFor && <TerritoryMapViewer territoryId={mapFor} onClose={() => setMapFor(null)} />}
 
 			{form && (
 				<SessionForm
@@ -259,14 +279,25 @@ function SessionBody({ s }: { s: SessionRow }) {
 			<div className="mt-1 flex flex-wrap gap-1.5 pr-3">
 				{s.territories.map((t) => (
 					<span key={t.id} className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent-strong">
-						{t.number}
-						{t.name ? ` — ${t.name}` : ""}
+						{t.name || `Territorio ${t.number}`}
 					</span>
 				))}
 			</div>
 			<div className="mt-1 pr-3 text-[13px] text-ink-soft">
-				{TERRITORY_KIND_LABEL[s.kind]} · {targetsText(s)}
+				{targetsText(s)}
+				{s.recurring && (
+					<span className="ml-1.5 inline-flex items-center gap-1 font-medium text-accent-strong" title="Se repite cada semana hasta que el territorio se entregue">
+						<Repeat size={12} />
+						Recurrente
+					</span>
+				)}
 			</div>
+			{/* Lugar de reunión de cada territorio (solo el texto). */}
+			{[...new Set(s.territories.map((t) => t.meetingPlace).filter(Boolean))].map((place) => (
+				<div key={place} className="mt-1 pr-3 text-[13px] font-medium text-ink">
+					{place}
+				</div>
+			))}
 			{s.note && <div className="mt-1 pr-3 text-[13px] text-ink">{s.note}</div>}
 		</>
 	);
@@ -374,6 +405,7 @@ function SessionForm({ session, initialDate, onClose, onSaved }: { session: Sess
 	const [date, setDate] = useState(session?.date ?? initialDate ?? today());
 	const [time, setTime] = useState(session?.time ?? "");
 	const [note, setNote] = useState(session?.note ?? "");
+	const [recurring, setRecurring] = useState(session?.recurring ?? false);
 	const [territoryIds, setTerritoryIds] = useState<string[]>(session?.territories.map((t) => t.id) ?? []);
 	const [congregation, setCongregation] = useState(session?.targets.congregation ?? true);
 	const [groupIds, setGroupIds] = useState<string[]>(session?.targets.groups.map((g) => g.id) ?? []);
@@ -423,6 +455,7 @@ function SessionForm({ session, initialDate, onClose, onSaved }: { session: Sess
 			date,
 			time,
 			note: note.trim() || null,
+			recurring,
 			territoryIds,
 			targets:
 				kind === "public_preaching"
@@ -536,6 +569,17 @@ function SessionForm({ session, initialDate, onClose, onSaved }: { session: Sess
 							</div>
 						</div>
 					)}
+
+					<label className="flex items-start gap-3 text-sm text-ink">
+						<input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-accent" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+						<span>
+							<span className="font-medium">Recurrente</span>
+							<span className="block text-xs text-ink-soft">
+								Se programa sola cada semana, el mismo día y a la misma hora, con el mismo capitán, hasta que el territorio se
+								entregue.
+							</span>
+						</span>
+					</label>
 
 					<label className="flex flex-col gap-1 text-sm">
 						<span className="font-medium text-ink">Nota (opcional)</span>

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import {
 	fieldServiceGroups,
@@ -36,6 +36,8 @@ export interface SessionInput {
 	date: string;
 	time: string;
 	note: string | null;
+	/** Se repite cada semana mientras los territorios sigan con el mismo capitán. */
+	recurring: boolean;
 	territoryIds: string[];
 	/** Territorios generales: toda la congregación o grupos. Predicación pública: publicadores. */
 	targets: { congregation: boolean; groupIds: string[]; userIds: string[] };
@@ -47,9 +49,10 @@ export interface SessionView {
 	time: string;
 	note: string | null;
 	kind: "general" | "public_preaching";
+	recurring: boolean;
 	notifiedAt: string | null;
 	/** `assigneeName`: quien tiene el territorio asignado ahora (para el widget de predicación de la app). */
-	territories: { id: string; number: string; name: string | null; assigneeName: string | null }[];
+	territories: { id: string; number: string; name: string | null; meetingPlace: string | null; hasMap: boolean; assigneeName: string | null }[];
 	targets: { congregation: boolean; groups: { id: string; name: string; color: string | null }[]; users: { id: string; fullName: string }[] };
 }
 
@@ -88,7 +91,7 @@ export async function listSessions(db: Database): Promise<SessionView[]> {
 		await Promise.all(
 			chunked(ids).map((part) =>
 				db
-					.select({ sessionId: preachingSessionTerritories.sessionId, id: territories.id, number: territories.number, name: territories.name, assigneeName: users.fullName })
+					.select({ sessionId: preachingSessionTerritories.sessionId, id: territories.id, number: territories.number, name: territories.name, meetingPlace: territories.meetingPlace, hasMap: sql<number>`(${territories.mapData} is not null)`, assigneeName: users.fullName })
 					.from(preachingSessionTerritories)
 					.innerJoin(territories, eq(territories.id, preachingSessionTerritories.territoryId))
 					.leftJoin(territoryAssignments, and(eq(territoryAssignments.territoryId, territories.id), eq(territoryAssignments.status, "assigned")))
@@ -126,10 +129,11 @@ export async function listSessions(db: Database): Promise<SessionView[]> {
 			time: s.sessionTime,
 			note: s.note,
 			kind: s.kind,
+			recurring: s.recurring,
 			notifiedAt: s.notifiedAt ? s.notifiedAt.toISOString() : null,
 			territories: territoryRows
 				.filter((t) => t.sessionId === s.id)
-				.map(({ id, number, name, assigneeName }) => ({ id, number, name, assigneeName: assigneeName ?? null }))
+				.map(({ id, number, name, meetingPlace, hasMap, assigneeName }) => ({ id, number, name, meetingPlace, hasMap: !!hasMap, assigneeName: assigneeName ?? null }))
 				.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true })),
 			targets: {
 				congregation: mine.some((t) => t.type === "congregation"),
@@ -202,8 +206,23 @@ async function validate(db: Database, input: SessionInput): Promise<"general" | 
 async function writeChildren(db: Database, sessionId: string, input: SessionInput) {
 	await db.delete(preachingSessionTerritories).where(eq(preachingSessionTerritories.sessionId, sessionId));
 	await db.delete(preachingSessionTargets).where(eq(preachingSessionTargets.sessionId, sessionId));
-	for (const part of chunked([...new Set(input.territoryIds)], 40)) {
-		await db.insert(preachingSessionTerritories).values(part.map((territoryId) => ({ sessionId, territoryId })));
+	// Se guarda la asignación vigente (el capitán) de cada territorio: la recurrencia sigue solo mientras sea la misma.
+	const territoryIds = [...new Set(input.territoryIds)];
+	const current = (
+		await Promise.all(
+			chunked(territoryIds).map((part) =>
+				db
+					.select({ territoryId: territoryAssignments.territoryId, id: territoryAssignments.id })
+					.from(territoryAssignments)
+					.where(and(inArray(territoryAssignments.territoryId, part), eq(territoryAssignments.status, "assigned"))),
+			),
+		)
+	).flat();
+	const assignmentOf = new Map(current.map((a) => [a.territoryId, a.id]));
+	for (const part of chunked(territoryIds, 30)) {
+		await db
+			.insert(preachingSessionTerritories)
+			.values(part.map((territoryId) => ({ sessionId, territoryId, assignmentId: assignmentOf.get(territoryId) ?? null })));
 	}
 	const targets: (typeof preachingSessionTargets.$inferInsert)[] = input.targets.congregation
 		? [{ sessionId, targetType: "congregation" as const }]
@@ -217,7 +236,9 @@ async function writeChildren(db: Database, sessionId: string, input: SessionInpu
 export async function createSession(db: Database, input: SessionInput, actorId: string): Promise<string> {
 	const kind = await validate(db, input);
 	const id = crypto.randomUUID();
-	await db.insert(preachingSessions).values({ id, sessionDate: input.date, sessionTime: input.time, note: input.note, kind, createdByUserId: actorId });
+	await db
+		.insert(preachingSessions)
+		.values({ id, sessionDate: input.date, sessionTime: input.time, note: input.note, kind, recurring: input.recurring, createdByUserId: actorId });
 	await writeChildren(db, id, input);
 	await publishNotices(db, id, actorId);
 	return id;
@@ -229,7 +250,7 @@ export async function updateSession(db: Database, id: string, input: SessionInpu
 	const kind = await validate(db, input);
 	await db
 		.update(preachingSessions)
-		.set({ sessionDate: input.date, sessionTime: input.time, note: input.note, kind, updatedAt: new Date() })
+		.set({ sessionDate: input.date, sessionTime: input.time, note: input.note, kind, recurring: input.recurring, updatedAt: new Date() })
 		.where(eq(preachingSessions.id, id));
 	await writeChildren(db, id, input);
 	await publishNotices(db, id, actorId);

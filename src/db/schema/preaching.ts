@@ -17,6 +17,9 @@ export const preachingSessions = sqliteTable(
 		sessionTime: text("session_time").notNull(),
 		note: text("note"),
 		kind: text("kind", { enum: ["general", "public_preaching"] }).notNull(),
+		// Se repite cada semana mientras los territorios sigan con el mismo capitán; la marca la lleva solo la salida más
+		// reciente de la serie (al crear la siguiente, pasa a ella). Ver lib/preaching/recurring.ts.
+		recurring: integer("recurring", { mode: "boolean" }).notNull().default(false),
 		createdByUserId: text("created_by_user_id")
 			.notNull()
 			.references(() => users.id),
@@ -42,6 +45,8 @@ export const preachingSessionTerritories = sqliteTable(
 		territoryId: text("territory_id")
 			.notNull()
 			.references(() => territories.id, { onDelete: "cascade" }),
+		// Asignación vigente del territorio (el capitán) al programar la salida; sin FK porque el historial se puede borrar.
+		assignmentId: text("assignment_id"),
 	},
 	(t) => [primaryKey({ columns: [t.sessionId, t.territoryId] }), index("preaching_session_territories_territory_idx").on(t.territoryId)],
 );

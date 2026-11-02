@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Plus, Send, Trash2, Undo2, X } from "lucide-react";
+import { Check, Pencil, Plus, Send, Trash2, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chip, ChipGroup, Fab, IconButton, List } from "@/components/ui/Layout";
@@ -18,6 +18,7 @@ type Status = "assigned" | "completed" | "returned";
 interface AssignmentRow {
 	id: string;
 	territoryId: string;
+	assigneeUserId: string;
 	territoryNumber: string;
 	territoryName: string | null;
 	territoryKind: TerritoryKind;
@@ -50,7 +51,7 @@ const RESOLVE_TEXT = {
 } as const;
 
 /** Listado de todas las asignaciones de territorios, con las acciones de quien
- * administra: avisar, completar, devolver, cancelar o eliminar. */
+ * administra: avisar, editar (cambiar el encargado), completar, devolver, cancelar o eliminar. */
 export function AssignmentsTab() {
 	const [rows, setRows] = useState<AssignmentRow[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -60,6 +61,7 @@ export function AssignmentsTab() {
 	const [resolving, setResolving] = useState<{ row: AssignmentRow; status: "completed" | "returned" } | null>(null);
 	const [comment, setComment] = useState("");
 	const [assignOpen, setAssignOpen] = useState(false);
+	const [editing, setEditing] = useState<AssignmentRow | null>(null);
 
 	const load = useCallback(async () => {
 		const response = await fetch("/api/territories/assignments");
@@ -179,6 +181,7 @@ export function AssignmentsTab() {
 												disabled={busy}
 												onClick={() => notify(r)}
 											/>
+											<IconButton label="Editar" icon={Pencil} disabled={busy} onClick={() => setEditing(r)} />
 											<IconButton label="Marcar completado" icon={Check} disabled={busy} onClick={() => startResolve(r, "completed")} />
 											<IconButton label="Marcar devuelto" icon={Undo2} disabled={busy} onClick={() => startResolve(r, "returned")} />
 											<IconButton label="Cancelar asignación" icon={X} disabled={busy} onClick={() => cancel(r)} />
@@ -200,6 +203,18 @@ export function AssignmentsTab() {
 					onClose={() => setAssignOpen(false)}
 					onAssigned={() => {
 						setAssignOpen(false);
+						load();
+					}}
+				/>
+			)}
+
+			{editing && (
+				<AssignModal
+					editing={{ territoryId: editing.territoryId, assigneeId: editing.assigneeUserId }}
+					onClose={() => setEditing(null)}
+					onAssigned={() => {
+						setEditing(null);
+						setMessage("Asignación actualizada. Envía el aviso al nuevo encargado.");
 						load();
 					}}
 				/>
@@ -247,12 +262,21 @@ interface TerritoryOption {
 }
 
 /** Asignar un territorio: se elige el territorio y a quién (solo quienes tienen
- * el privilegio asignable que corresponde al tipo del territorio). */
-function AssignModal({ onClose, onAssigned }: { onClose: () => void; onAssigned: () => void }) {
+ * el privilegio asignable que corresponde al tipo del territorio). Con `editing`, el territorio queda fijo y solo se cambia
+ * el encargado de la asignación vigente. */
+function AssignModal({
+	editing,
+	onClose,
+	onAssigned,
+}: {
+	editing?: { territoryId: string; assigneeId: string };
+	onClose: () => void;
+	onAssigned: () => void;
+}) {
 	const people = useAssignableUsers();
 	const [territories, setTerritories] = useState<TerritoryOption[] | null>(null);
-	const [territoryId, setTerritoryId] = useState("");
-	const [assigneeId, setAssigneeId] = useState("");
+	const [territoryId, setTerritoryId] = useState(editing?.territoryId ?? "");
+	const [assigneeId, setAssigneeId] = useState(editing?.assigneeId ?? "");
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -280,11 +304,12 @@ function AssignModal({ onClose, onAssigned }: { onClose: () => void; onAssigned:
 	}
 
 	return (
-		<Modal open onClose={onClose} title="Asignar territorio">
+		<Modal open onClose={onClose} title={editing ? "Editar asignación" : "Asignar territorio"}>
 			<div className="flex flex-col gap-3">
 				<Select
 					label="Territorio"
 					value={territoryId}
+					disabled={!!editing}
 					onChange={(e) => {
 						setTerritoryId(e.target.value);
 						setAssigneeId("");
@@ -312,7 +337,7 @@ function AssignModal({ onClose, onAssigned }: { onClose: () => void; onAssigned:
 						Nadie tiene el privilegio «{selected.kind === "general" ? "Asignable para territorio" : "Asignable para predicación pública"}». Otórgalo desde la ficha del publicador.
 					</p>
 				)}
-				{selected?.current && (
+				{selected?.current && !editing && (
 					<p className="text-sm text-ink-soft">Este territorio ya está con {selected.current.assigneeName}; al guardar se cambia el encargado.</p>
 				)}
 				{error && <p className="text-sm text-warn">{error}</p>}
@@ -320,8 +345,8 @@ function AssignModal({ onClose, onAssigned }: { onClose: () => void; onAssigned:
 					<Button variant="secondary" onClick={onClose}>
 						Cancelar
 					</Button>
-					<Button onClick={save} disabled={saving || !selected || !assigneeId}>
-						{saving ? "Guardando..." : "Asignar"}
+					<Button onClick={save} disabled={saving || !selected || !assigneeId || (!!editing && assigneeId === editing.assigneeId)}>
+						{saving ? "Guardando..." : editing ? "Guardar" : "Asignar"}
 					</Button>
 				</div>
 			</div>

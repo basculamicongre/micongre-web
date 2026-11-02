@@ -503,6 +503,17 @@ export function canAccessTerritoriesModule(session: Session | null): boolean {
 	return !!session && (session.role === "admin" || session.privilegeCodes.includes(PRIVILEGE_CODES.TERRITORY_MANAGEMENT));
 }
 
+/** De qué tipos de territorio puede ver el mapa (desde el calendario de predicación): quien administra territorios, todos;
+ * quien tiene «Asignable para territorio» o «Asignable para predicación pública», los de ese tipo. */
+export function territoryMapKinds(session: Session | null): ("general" | "public_preaching")[] {
+	if (!session) return [];
+	if (canAccessTerritoriesModule(session)) return ["general", "public_preaching"];
+	const kinds: ("general" | "public_preaching")[] = [];
+	if (session.privilegeCodes.includes(PRIVILEGE_CODES.TERRITORY_ASSIGNABLE)) kinds.push("general");
+	if (session.privilegeCodes.includes(PRIVILEGE_CODES.PUBLIC_PREACHING_ASSIGNABLE)) kinds.push("public_preaching");
+	return kinds;
+}
+
 export function assertCanAccessTerritoriesModule(session: Session | null): asserts session is Session {
 	if (!canAccessTerritoriesModule(session)) {
 		throw new RbacError("No tienes acceso al módulo de territorios.");

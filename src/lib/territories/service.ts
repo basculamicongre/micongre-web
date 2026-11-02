@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { nicaraguaToday, runRecurringPreaching } from "@/lib/preaching/recurring";
 import type { Database } from "@/db/client";
 import { notificationRecipients, notifications, territories, territoryAssignments, users } from "@/db/schema";
 import type { TerritoryKind } from "@/lib/territories/geo";
@@ -42,6 +43,7 @@ export interface TerritoryListItem {
 	kind: TerritoryKind;
 	name: string | null;
 	notes: string | null;
+	meetingPlace: string | null;
 	hasMap: boolean;
 	/** Asignación vigente, si la hay. */
 	current: AssignmentView | null;
@@ -79,6 +81,7 @@ export async function listTerritories(db: Database): Promise<TerritoryListItem[]
 				kind: territories.kind,
 				name: territories.name,
 				notes: territories.notes,
+				meetingPlace: territories.meetingPlace,
 				hasMap: sql<number>`(${territories.mapData} is not null)`,
 			})
 			.from(territories),
@@ -100,6 +103,7 @@ export async function listTerritories(db: Database): Promise<TerritoryListItem[]
 			kind: r.kind,
 			name: r.name,
 			notes: r.notes,
+			meetingPlace: r.meetingPlace,
 			hasMap: !!r.hasMap,
 			current: currentBy.get(r.id) ?? null,
 			last: lastBy.get(r.id) ?? null,
@@ -233,6 +237,16 @@ export async function notifyAssignee(db: Database, territoryId: string, senderUs
 const RESOLUTION_VERB = { completed: "completó", returned: "devolvió" } as const;
 const RESOLUTION_TITLE = { completed: "completado", returned: "devuelto" } as const;
 
+/** La entrega o el cambio de capitán saca el territorio de las salidas de predicación recurrentes pendientes. Nunca hace
+ * fallar la operación principal. */
+async function stopRecurringPreaching(db: Database) {
+	try {
+		await runRecurringPreaching(db, nicaraguaToday(), { generate: false });
+	} catch (error) {
+		console.error("preaching_recurring_prune_failed", error);
+	}
+}
+
 /** El encargado completa o devuelve su territorio (con comentario opcional):
  * la asignación queda con ese estado y la fecha, y se avisa (notificación +
  * push) a quienes administran territorios. */
@@ -257,6 +271,7 @@ export async function resolveAssignment(
 
 	// El aviso de "se te asignó" ya no tiene objeto.
 	await deleteNotifications(db, [assignment.notificationId]);
+	await stopRecurringPreaching(db);
 
 	const [territory, [actor], managers] = await Promise.all([
 		describeTerritory(db, assignment.territoryId),
@@ -361,6 +376,7 @@ export async function adminResolveAssignment(
 		.returning({ id: territoryAssignments.id });
 	if (resolved.length === 0) throw new TerritoryFailure("already_resolved");
 	await deleteNotifications(db, [assignment.notificationId]);
+	await stopRecurringPreaching(db);
 }
 
 /** Cancela una asignación vigente o borra una del historial (y su aviso). */
@@ -369,4 +385,5 @@ export async function deleteAssignment(db: Database, assignmentId: string) {
 	if (!assignment) throw new TerritoryFailure("assignment_not_found");
 	await deleteNotifications(db, [assignment.notificationId]);
 	await db.delete(territoryAssignments).where(eq(territoryAssignments.id, assignmentId));
+	await stopRecurringPreaching(db);
 }

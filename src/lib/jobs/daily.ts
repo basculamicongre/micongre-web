@@ -15,6 +15,7 @@ import { ensureSongsCatalog } from "@/lib/songs/catalog";
 import { importWatchtowerForWeeks } from "@/lib/weekend/watchtower";
 import { purgeOldOperations } from "@/lib/http/idempotency";
 import { currentWeekStart, syncUpcomingMeetings, type SyncResult } from "@/lib/operational/template";
+import { nicaraguaToday, runRecurringPreaching, type RecurringResult } from "@/lib/preaching/recurring";
 
 /** Hora de Nicaragua (UTC−6, sin horario de verano). */
 const NICARAGUA_OFFSET_HOURS = -6;
@@ -24,6 +25,8 @@ export interface DailyResult {
 	weekend: { created: number };
 	/** Puestos de tareas operativas ajustados a la plantilla (null si falló). */
 	operational: SyncResult | null;
+	/** Predicación recurrente: salidas creadas para la semana siguiente, series terminadas y salidas quitadas (null si falló). */
+	preaching: RecurringResult | null;
 	congregations: { checked: number; updated: number; failed: { name: string; reason: string }[] };
 	/** Recordatorio del informe del mes anterior (null si falló). */
 	reports: ReportReminderResult | null;
@@ -174,11 +177,12 @@ async function syncCongregations(db: Database, out: DailyResult["congregations"]
 /** Job diario: (1) deja armados los programas del mes en curso y del siguiente (entre semana y fin de semana) y
  * con sus puestos de tareas operativas según la plantilla, y (2) actualiza desde jw.org el día y la hora de las congregaciones de arreglos que tienen enlace. Cada paso es independiente:
  * si uno falla, el otro corre igual. `only` limita a un paso (pruebas). */
-export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports"): Promise<DailyResult> {
+export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports" | "preaching"): Promise<DailyResult> {
 	const result: DailyResult = {
 		midweek: { created: 0, imported: 0, skeletons: 0, filled: 0, errors: [] },
 		weekend: { created: 0 },
 		operational: null,
+		preaching: null,
 		congregations: { checked: 0, updated: 0, failed: [] },
 		reports: null,
 	};
@@ -221,6 +225,14 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 			await purgeOldOperations(db);
 		} catch (error) {
 			console.error("daily_purge_operations_failed", error);
+		}
+	}
+	// Predicación recurrente: el día de cada salida se crea la de la semana siguiente (mientras siga el mismo capitán).
+	if (!only || only === "preaching") {
+		try {
+			result.preaching = await runRecurringPreaching(db, nicaraguaToday(now), { generate: true });
+		} catch (error) {
+			console.error("daily_preaching_failed", error);
 		}
 	}
 	if (!only || only === "congregations") {

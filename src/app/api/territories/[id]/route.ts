@@ -25,6 +25,7 @@ export async function GET(_request: Request, { params }: Params) {
 			kind: territory.kind,
 			name: territory.name,
 			notes: territory.notes,
+			meetingPlace: territory.meetingPlace,
 			mapData: parseMapData(territory.mapData),
 			history,
 		});

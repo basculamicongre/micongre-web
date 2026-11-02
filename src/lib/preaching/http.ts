@@ -22,6 +22,7 @@ export const sessionSchema = z.object({
 	date: z.string().min(1),
 	time: z.string().min(1),
 	note: z.string().trim().max(500).optional().nullable(),
+	recurring: z.boolean().optional().default(false),
 	territoryIds: z.array(z.string().min(1)).min(1),
 	targets: z.object({
 		congregation: z.boolean().default(false),
@@ -31,5 +32,5 @@ export const sessionSchema = z.object({
 });
 
 export function toInput(parsed: z.infer<typeof sessionSchema>): SessionInput {
-	return { date: parsed.date, time: parsed.time, note: parsed.note?.trim() || null, territoryIds: parsed.territoryIds, targets: parsed.targets };
+	return { date: parsed.date, time: parsed.time, note: parsed.note?.trim() || null, recurring: parsed.recurring, territoryIds: parsed.territoryIds, targets: parsed.targets };
 }

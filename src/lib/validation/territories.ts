@@ -42,6 +42,7 @@ export const createTerritorySchema = z.object({
 	kind: z.enum(TERRITORY_KINDS).default("general"),
 	name: optionalText(120),
 	notes: optionalText(1000),
+	meetingPlace: optionalText(150),
 });
 
 export const updateTerritorySchema = z.object({
@@ -49,6 +50,7 @@ export const updateTerritorySchema = z.object({
 	kind: z.enum(TERRITORY_KINDS).optional(),
 	name: optionalText(120).optional(),
 	notes: optionalText(1000).optional(),
+	meetingPlace: optionalText(150).optional(),
 	mapData: mapDataSchema.nullable().optional(),
 });
 

@@ -19,6 +19,8 @@ export const territories = sqliteTable(
 		kind: text("kind", { enum: TERRITORY_KINDS }).notNull().default("general"),
 		name: text("name"),
 		notes: text("notes"),
+		// Dónde se reúnen para salir a predicar ese territorio (una línea); se ve en el calendario de predicación.
+		meetingPlace: text("meeting_place"),
 		mapData: text("map_data"),
 		createdAt: integer("created_at", { mode: "timestamp" })
 			.notNull()
