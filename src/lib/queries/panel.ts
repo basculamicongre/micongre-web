@@ -3,6 +3,7 @@ import type { Database } from "@/db/client";
 import {
 	cleaningTaskAssignees,
 	cleaningTasks,
+	congregations,
 	fieldServiceGroups,
 	midweekAssignments,
 	midweekMeetings,
@@ -46,6 +47,8 @@ export interface PanelAssignment {
 		| "preaching"
 		| "territory";
 	label: string;
+	/** Línea pequeña debajo (p. ej. la congregación donde se presenta un discurso o el lugar de reunión de la predicación). */
+	detail?: string;
 	/** Solo para meetingType "territory": lo que Mi Panel necesita para ver el
 	 * mapa y para completar o devolver el territorio. */
 	territory?: {
@@ -74,6 +77,10 @@ function nicaraguaDate(instant: Date): string {
 	return new Date(instant.getTime() - 6 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
+/** Solo el nombre del territorio (el número, si no tiene nombre). */
+const territoryName = (number: string, name: string | null) => name?.trim() || `Territorio ${number}`;
+const talkLabel = (outline: number | string | null) => (outline ? `Discurso público — bosquejo #${outline}` : "Discurso público");
+
 export async function getUserAssignments(db: Database, userId: string): Promise<PanelAssignment[]> {
 	const assignments: PanelAssignment[] = [];
 
@@ -83,6 +90,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			status: midweekMeetings.status,
 			sectionType: midweekAssignments.sectionType,
 			sectionTitle: midweekAssignments.sectionTitle,
+			partNumber: midweekAssignments.partNumber,
 			mainAssigneeId: midweekAssignments.mainAssigneeId,
 		})
 		.from(midweekAssignments)
@@ -94,7 +102,8 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 	for (const row of midweekRows) {
 		if (isMeetingCancelled(row.status)) continue;
 		const base = SECTION_LABELS[row.sectionType] ?? row.sectionType;
-		const label = row.sectionTitle ? `${base} — ${row.sectionTitle}` : base;
+		const title = row.sectionTitle && row.partNumber ? `${row.partNumber}. ${row.sectionTitle}` : row.sectionTitle;
+		const label = title ? `${base} — ${title}` : base;
 		const role = row.mainAssigneeId === userId ? "" : " (ayudante)";
 		assignments.push({ date: row.meetingDate, meetingType: "midweek", label: `${label}${role}`, bucket: "meeting:midweek" });
 	}
@@ -123,12 +132,14 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			status: weekendMeetings.status,
 			chairmanUserId: weekendMeetings.chairmanUserId,
 			speakerUserId: speakers.userId,
+			outlineNumber: publicTalkOutlines.number,
 			watchtowerConductorId: weekendMeetings.watchtowerConductorId,
 			watchtowerReaderId: weekendMeetings.watchtowerReaderId,
 			prayerUserId: weekendMeetings.prayerUserId,
 		})
 		.from(weekendMeetings)
 		.leftJoin(speakers, eq(speakers.id, weekendMeetings.speakerId))
+		.leftJoin(publicTalkOutlines, eq(publicTalkOutlines.id, weekendMeetings.talkOutlineId))
 		.where(
 			or(
 				eq(weekendMeetings.chairmanUserId, userId),
@@ -139,15 +150,26 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			),
 		);
 
+	const ownCongregation = weekendRows.some((r) => r.speakerUserId === userId)
+		? ((await db.select({ name: congregations.name }).from(congregations).limit(1))[0]?.name ?? "")
+		: "";
 	for (const row of weekendRows) {
 		if (isMeetingCancelled(row.status)) continue;
+		if (row.speakerUserId === userId) {
+			assignments.push({
+				date: row.meetingDate,
+				meetingType: "weekend",
+				label: talkLabel(row.outlineNumber),
+				detail: ownCongregation || undefined,
+				bucket: "meeting:weekend",
+			});
+		}
 		const roles: string[] = [];
 		if (row.chairmanUserId === userId) roles.push("Presidente");
-		if (row.speakerUserId === userId) roles.push("Orador del discurso público");
 		if (row.watchtowerConductorId === userId) roles.push("Conductor de La Atalaya");
 		if (row.watchtowerReaderId === userId) roles.push("Lector de La Atalaya");
 		if (row.prayerUserId === userId) roles.push("Oración");
-		assignments.push({ date: row.meetingDate, meetingType: "weekend", label: roles.join(" · "), bucket: "meeting:weekend" });
+		if (roles.length) assignments.push({ date: row.meetingDate, meetingType: "weekend", label: roles.join(" · "), bucket: "meeting:weekend" });
 	}
 
 	const operationalRows = await db
@@ -276,18 +298,26 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		const [sessions, territoryRows] = await Promise.all([
 			db.select().from(preachingSessions).where(inArray(preachingSessions.id, ids)),
 			db
-				.select({ sessionId: preachingSessionTerritories.sessionId, territoryId: territories.id, number: territories.number, name: territories.name })
+				.select({
+					sessionId: preachingSessionTerritories.sessionId,
+					territoryId: territories.id,
+					number: territories.number,
+					name: territories.name,
+					meetingPlace: territories.meetingPlace,
+				})
 				.from(preachingSessionTerritories)
 				.innerJoin(territories, eq(territories.id, preachingSessionTerritories.territoryId))
 				.where(inArray(preachingSessionTerritories.sessionId, ids)),
 		]);
 		for (const s of sessions) {
 			const list = territoryRows.filter((t) => t.sessionId === s.id).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
-			const names = list.map((t) => (t.name ? `${t.number} — ${t.name}` : t.number)).join(", ");
+			const names = list.map((t) => territoryName(t.number, t.name)).join(", ");
+			const places = [...new Set(list.map((t) => t.meetingPlace?.trim()).filter((p): p is string => !!p))];
 			assignments.push({
 				date: s.sessionDate,
 				meetingType: "preaching",
-				label: `Predicación · ${time12(s.sessionTime)} — ${list.length === 1 ? "Territorio" : "Territorios"} ${names}${s.note ? ` (${s.note})` : ""}`,
+				label: `Predicación · ${time12(s.sessionTime)}${names ? ` — ${names}` : ""}${s.note ? ` (${s.note})` : ""}`,
+				detail: places.join(" · ") || undefined,
 				bucket: s.kind === "public_preaching" ? "preaching:public" : "preaching:group",
 				time: s.sessionTime,
 				territoryIds: list.map((t) => t.territoryId),
@@ -304,6 +334,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			territoryId: territoryAssignments.territoryId,
 			number: territories.number,
 			name: territories.name,
+			meetingPlace: territories.meetingPlace,
 			status: territoryAssignments.status,
 			assignedAt: territoryAssignments.assignedAt,
 			resolvedAt: territoryAssignments.resolvedAt,
@@ -314,12 +345,13 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		.where(eq(territoryAssignments.assigneeUserId, userId));
 
 	for (const row of territoryRows) {
-		const title = row.name ? `Territorio ${row.number} — ${row.name}` : `Territorio ${row.number}`;
+		const title = territoryName(row.number, row.name);
 		const resolvedLabel = row.status === "completed" ? "completado" : "devuelto";
 		assignments.push({
 			date: nicaraguaDate(row.status === "assigned" ? row.assignedAt : (row.resolvedAt ?? row.assignedAt)),
 			meetingType: "territory",
 			label: row.status === "assigned" ? title : `${title} (${resolvedLabel})`,
+			detail: row.meetingPlace?.trim() || undefined,
 			territory: { assignmentId: row.assignmentId, territoryId: row.territoryId, status: row.status, comment: row.comment },
 		});
 	}
@@ -329,7 +361,6 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			meetingDate: outgoingTalks.meetingDate,
 			congregationName: speakerCongregations.name,
 			talkOutlineNumber: publicTalkOutlines.number,
-			talkOutlineTitle: publicTalkOutlines.title,
 		})
 		.from(outgoingTalks)
 		.innerJoin(speakers, eq(speakers.id, outgoingTalks.speakerId))
@@ -341,7 +372,8 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		assignments.push({
 			date: row.meetingDate,
 			meetingType: "outgoing_talk",
-			label: `Discurso en ${row.congregationName} — ${row.talkOutlineNumber}. ${row.talkOutlineTitle}`,
+			label: talkLabel(row.talkOutlineNumber),
+			detail: row.congregationName,
 		});
 	}
 

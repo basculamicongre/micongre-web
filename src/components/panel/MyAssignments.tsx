@@ -99,6 +99,7 @@ export function MyAssignments({
 										</p>
 									)}
 									<p className="mt-0.5 text-base font-semibold text-ink">{item.label}</p>
+									{item.detail && <p className="mt-0.5 text-[13px] text-ink-soft">{item.detail}</p>}
 									{pending && <p className="mt-0.5 text-[13px] text-ink-soft">Asignado el {dates}</p>}
 									{territory && !pending && territory.comment && (
 										<p className="mt-0.5 text-[13px] text-ink-soft">«{territory.comment}»</p>

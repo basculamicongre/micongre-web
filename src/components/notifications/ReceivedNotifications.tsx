@@ -72,7 +72,7 @@ export function NotificationFeed({
 					<div className="min-w-0 flex-1 py-1">
 						<NotificationMarkdown message={n.message} />
 						<p className="mt-1.5 text-[13px] text-ink-soft">
-							{n.senderName} · {timeAgo(n.createdAt)} · {SCOPE_LABEL[n.scope]}
+							{timeAgo(n.createdAt)} · {SCOPE_LABEL[n.scope]}
 						</p>
 					</div>
 					<IconButton label="Ocultar este aviso" icon={X} onClick={() => onDismiss(n.id)} />

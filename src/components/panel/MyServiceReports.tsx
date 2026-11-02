@@ -84,9 +84,17 @@ export function MyServiceReports({ userId, fullName }: { userId: string; fullNam
 										<p className="text-base font-semibold text-ink">{entry.label}</p>
 										{entry.report && !editing && (
 											<p className="mt-0.5 text-[13px] text-ink-soft">
-												Participó: {entry.report.participatedInMinistry ? "Sí" : "No"} · Horas: {entry.report.hours || "—"}
-												{entry.report.projectHours ? ` (+${entry.report.projectHours} proyectos)` : ""} · Cursos:{" "}
-												{entry.report.bibleStudiesCount ?? 0}
+												{[
+													`Participó: ${entry.report.participatedInMinistry ? "Sí" : "No"}`,
+													entry.report.hours
+														? `Horas: ${entry.report.hours}${entry.report.projectHours ? ` (+${entry.report.projectHours} proyectos)` : ""}`
+														: entry.report.projectHours
+															? `Horas de proyectos: ${entry.report.projectHours}`
+															: null,
+													entry.report.bibleStudiesCount ? `Cursos: ${entry.report.bibleStudiesCount}` : null,
+												]
+													.filter(Boolean)
+													.join(" · ")}
 											</p>
 										)}
 									</div>
