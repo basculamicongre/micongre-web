@@ -5,12 +5,15 @@ import { midweekAssignments, midweekMeetings, users } from "@/db/schema";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/Layout";
 import { getSession } from "@/lib/auth/session";
+import { PRIVILEGE_CODES } from "@/lib/rbac/roles";
 import { formatLongDate } from "@/lib/dateFormat";
 import { buildS89Slips } from "@/lib/s89";
 
 export default async function MidweekNotifyPage({ params }: { params: Promise<{ id: string }> }) {
 	const session = await getSession();
-	if (session?.role !== "admin") redirect("/panel");
+	if (!session || (session.role !== "admin" && !session.privilegeCodes.includes(PRIVILEGE_CODES.MIDWEEK_ACCESS))) {
+		redirect("/panel");
+	}
 
 	const { id } = await params;
 	const db = getDb();
