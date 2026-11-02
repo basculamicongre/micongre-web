@@ -25,6 +25,7 @@ import {
 import { CLEANING_KIND_LABEL, CLEANING_MEETING_LABEL, OWN_CONGREGATION_LABEL } from "@/lib/cleaning/labels";
 import { chunked, getCleaningMeetings, isMeetingCancelled } from "@/lib/cleaning/meetings";
 import { loadAssignees } from "@/lib/cleaning/tasks";
+import { formatShortDayMonth } from "@/lib/dateFormat";
 import { time12 } from "@/lib/export/builders/meetingDates";
 import { addDays, parseISODate, toISODate } from "@/lib/mwb/dates";
 import { isServiceCommitteeMember } from "@/lib/rbac/guards";
@@ -53,6 +54,15 @@ export interface PanelAssignment {
 		status: "assigned" | "completed" | "returned";
 		comment: string | null;
 	};
+	// Solo para elegir las próximas (lib/panel/upcoming.ts); no se envían al cliente.
+	/** Grupo de «lo que sigue»: `meeting:midweek` / `meeting:weekend` (partes y acomodadores), `preaching:group`, `preaching:public`… */
+	bucket?: string;
+	/** Hora (HH:MM) para ordenar el mismo día. */
+	time?: string;
+	/** Predicación: sus territorios, y «03/nov 8:45 a. m.» para mostrarla junto al territorio del capitán. */
+	territoryIds?: string[];
+	when?: string;
+	nextSession?: string;
 }
 
 /** Junta las asignaciones de un publicador en los tres orígenes posibles
@@ -86,7 +96,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		const base = SECTION_LABELS[row.sectionType] ?? row.sectionType;
 		const label = row.sectionTitle ? `${base} — ${row.sectionTitle}` : base;
 		const role = row.mainAssigneeId === userId ? "" : " (ayudante)";
-		assignments.push({ date: row.meetingDate, meetingType: "midweek", label: `${label}${role}` });
+		assignments.push({ date: row.meetingDate, meetingType: "midweek", label: `${label}${role}`, bucket: "meeting:midweek" });
 	}
 
 	// Presidente y oración inicial viven en la reunión, no en midweek_assignments.
@@ -104,7 +114,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		const roles: string[] = [];
 		if (row.chairmanUserId === userId) roles.push("Presidente");
 		if (row.openingPrayerUserId === userId) roles.push("Oración inicial");
-		assignments.push({ date: row.meetingDate, meetingType: "midweek", label: roles.join(" · ") });
+		assignments.push({ date: row.meetingDate, meetingType: "midweek", label: roles.join(" · "), bucket: "meeting:midweek" });
 	}
 
 	const weekendRows = await db
@@ -137,7 +147,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		if (row.watchtowerConductorId === userId) roles.push("Conductor de La Atalaya");
 		if (row.watchtowerReaderId === userId) roles.push("Lector de La Atalaya");
 		if (row.prayerUserId === userId) roles.push("Oración");
-		assignments.push({ date: row.meetingDate, meetingType: "weekend", label: roles.join(" · ") });
+		assignments.push({ date: row.meetingDate, meetingType: "weekend", label: roles.join(" · "), bucket: "meeting:weekend" });
 	}
 
 	const operationalRows = await db
@@ -169,7 +179,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			const date = dateById.get(row.meetingId);
 			if (!date) continue;
 			const label = row.position ? `${row.privilegeName} — ${row.position}` : row.privilegeName;
-			assignments.push({ date, meetingType: "operational", label });
+			assignments.push({ date, meetingType: "operational", label, bucket: `meeting:${row.meetingType}` });
 		}
 	}
 
@@ -266,7 +276,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		const [sessions, territoryRows] = await Promise.all([
 			db.select().from(preachingSessions).where(inArray(preachingSessions.id, ids)),
 			db
-				.select({ sessionId: preachingSessionTerritories.sessionId, number: territories.number, name: territories.name })
+				.select({ sessionId: preachingSessionTerritories.sessionId, territoryId: territories.id, number: territories.number, name: territories.name })
 				.from(preachingSessionTerritories)
 				.innerJoin(territories, eq(territories.id, preachingSessionTerritories.territoryId))
 				.where(inArray(preachingSessionTerritories.sessionId, ids)),
@@ -278,6 +288,10 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 				date: s.sessionDate,
 				meetingType: "preaching",
 				label: `Predicación · ${time12(s.sessionTime)} — ${list.length === 1 ? "Territorio" : "Territorios"} ${names}${s.note ? ` (${s.note})` : ""}`,
+				bucket: s.kind === "public_preaching" ? "preaching:public" : "preaching:group",
+				time: s.sessionTime,
+				territoryIds: list.map((t) => t.territoryId),
+				when: `${formatShortDayMonth(s.sessionDate)} ${time12(s.sessionTime)}`,
 			});
 		}
 	}

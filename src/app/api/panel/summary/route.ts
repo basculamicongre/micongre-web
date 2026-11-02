@@ -1,12 +1,24 @@
-import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, notInArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db/client";
-import { CONGREGATION_ROW_ID, congregations, fieldServiceGroups, theocraticAppointments, users } from "@/db/schema";
+import {
+	CONGREGATION_ROW_ID,
+	congregations,
+	fieldServiceGroups,
+	outgoingTalks,
+	publicTalkOutlines,
+	speakerCongregations,
+	speakers,
+	theocraticAppointments,
+	users,
+} from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
-import { addDays, parseISODate, toISODate } from "@/lib/mwb/dates";
+import { addDays, mondayOf, parseISODate, toISODate } from "@/lib/mwb/dates";
+import { selectUpcoming } from "@/lib/panel/upcoming";
+import { time12 } from "@/lib/export/builders/meetingDates";
 import { getUserAssignments } from "@/lib/queries/panel";
-import { SERVICE_COMMITTEE_APPOINTMENTS } from "@/lib/rbac/roles";
+import { PRIVILEGE_CODES, SERVICE_COMMITTEE_APPOINTMENTS } from "@/lib/rbac/roles";
 import { notHiddenAdmin } from "@/lib/rbac/visibility";
 
 // Todo lo que necesita "Mi panel" en un solo request — asignaciones
@@ -17,12 +29,51 @@ export async function GET() {
 		if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
 		const db = getDb();
-		const today = new Date().toISOString().slice(0, 10);
+		// Hoy y la semana en curso, en hora de Nicaragua (UTC−6).
+		const today = new Date(Date.now() - 6 * 3_600_000).toISOString().slice(0, 10);
+		const weekStart = toISODate(mondayOf(parseISODate(today)));
+		const weekEnd = toISODate(addDays(parseISODate(weekStart), 6));
 
-		const [assignments, [me]] = await Promise.all([
+		const [assignments, [me], myAppointments] = await Promise.all([
 			getUserAssignments(db, session.userId),
 			db.select({ fieldServiceGroupId: users.fieldServiceGroupId }).from(users).where(eq(users.id, session.userId)),
+			db
+				.select({ type: theocraticAppointments.appointmentType })
+				.from(theocraticAppointments)
+				.where(and(eq(theocraticAppointments.userId, session.userId), isNull(theocraticAppointments.endDate)))
+				.then((rows) => rows.map((a) => a.type)),
 		]);
+
+		// Quien administra los arreglos de discursos ve quiénes salen a dar discurso esta semana (además de lo suyo).
+		const managesTalks =
+			session.role === "admin" || session.privilegeCodes.includes(PRIVILEGE_CODES.WEEKEND_ACCESS) || myAppointments.includes("public_talk_coordinator");
+		if (managesTalks) {
+			const outgoing = await db
+				.select({
+					date: outgoingTalks.meetingDate,
+					time: outgoingTalks.meetingTime,
+					speakerUserId: speakers.userId,
+					speakerName: users.fullName,
+					congregationName: speakerCongregations.name,
+					number: publicTalkOutlines.number,
+				})
+				.from(outgoingTalks)
+				.innerJoin(speakers, eq(speakers.id, outgoingTalks.speakerId))
+				.leftJoin(users, eq(users.id, speakers.userId))
+				.innerJoin(speakerCongregations, eq(speakerCongregations.id, outgoingTalks.congregationId))
+				.innerJoin(publicTalkOutlines, eq(publicTalkOutlines.id, outgoingTalks.talkOutlineId))
+				.where(and(gte(outgoingTalks.meetingDate, weekStart), lte(outgoingTalks.meetingDate, weekEnd)));
+			for (const o of outgoing) {
+				if (o.speakerUserId === session.userId) continue; // el suyo ya sale como su propio discurso
+				assignments.push({
+					date: o.date,
+					meetingType: "outgoing_talk",
+					label: `Sale ${o.speakerName ?? "un orador"} a ${o.congregationName} · ${time12(o.time)} — bosquejo ${o.number}`,
+					bucket: "talks_out",
+					time: o.time,
+				});
+			}
+		}
 
 		// Solo los próximos 30 días (una semana de limpieza profunda en curso cuenta).
 		const horizon = toISODate(addDays(parseISODate(today), 30));
@@ -30,19 +81,23 @@ export async function GET() {
 		// sin importar la fecha en que se le asignó; uno ya resuelto es historial.
 		const isPendingTerritory = (a: (typeof assignments)[number]) => a.territory?.status === "assigned";
 		const isResolvedTerritory = (a: (typeof assignments)[number]) => !!a.territory && !isPendingTerritory(a);
-		const upcoming = assignments.filter(
-			(a) => isPendingTerritory(a) || (!isResolvedTerritory(a) && (a.dateEnd ?? a.date) >= today && a.date <= horizon),
+		// Solo lo que sigue de cada tipo (ver lib/panel/upcoming.ts).
+		const upcoming = selectUpcoming(
+			assignments.filter((a) => isPendingTerritory(a) || (!isResolvedTerritory(a) && (a.dateEnd ?? a.date) >= today && a.date <= horizon)),
+			{ today, weekStart, weekEnd },
 		);
 		// Historial: solo los últimos 30 días.
 		const historyFrom = toISODate(addDays(parseISODate(today), -30));
 		const history = assignments
 			.filter(
 				(a) =>
+					a.bucket !== "talks_out" &&
 					!isPendingTerritory(a) &&
 					(isResolvedTerritory(a) ? a.date >= historyFrom : (a.dateEnd ?? a.date) < today && (a.dateEnd ?? a.date) >= historyFrom),
 			)
 			.slice(-10)
-			.reverse();
+			.reverse()
+			.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, ...rest }) => rest);
 
 		let group = null;
 		if (me?.fieldServiceGroupId) {
@@ -115,12 +170,6 @@ export async function GET() {
 
 		// Enlaces de acceso rápido: el de ancianos solo lo ven ancianos; el de nombrados, siervos ministeriales y ancianos.
 		const [cong] = await db.select().from(congregations).where(eq(congregations.id, CONGREGATION_ROW_ID)).limit(1);
-		const myAppointments = (
-			await db
-				.select({ type: theocraticAppointments.appointmentType })
-				.from(theocraticAppointments)
-				.where(and(eq(theocraticAppointments.userId, session.userId), isNull(theocraticAppointments.endDate)))
-		).map((a) => a.type);
 		const isElder = myAppointments.includes("elder");
 		const isMinisterialServant = myAppointments.includes("ministerial_servant");
 		const isAppointed = isElder || isMinisterialServant;
