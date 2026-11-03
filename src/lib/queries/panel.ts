@@ -49,6 +49,8 @@ export interface PanelAssignment {
 		| "preaching"
 		| "territory";
 	label: string;
+	/** Enlace a la ubicación en el mapa (Google Maps), p. ej. del Salón donde se da un discurso. */
+	mapUrl?: string;
 	/** Línea pequeña debajo (p. ej. la congregación donde se presenta un discurso o el lugar de reunión de la predicación). */
 	detail?: string;
 	/** Solo para meetingType "territory": lo que Mi Panel necesita para ver el
@@ -81,6 +83,15 @@ function nicaraguaDate(instant: Date): string {
 
 /** Solo el nombre del territorio (el número, si no tiene nombre). */
 const territoryName = (number: string, name: string | null) => name?.trim() || `Territorio ${number}`;
+const hhmm = (t: string | null | undefined) => (t && /^\d{1,2}:\d{2}/.test(t) ? time12(t.slice(0, 5)) : null);
+/** Enlace a Google Maps: por coordenadas si las hay; si no, buscando la dirección. */
+export function mapsUrl(place: { latitude?: number | null; longitude?: number | null; address?: string | null; name?: string | null }): string | undefined {
+	if (place.latitude != null && place.longitude != null) {
+		return `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`;
+	}
+	const text = [place.name, place.address].filter(Boolean).join(", ").replace(/\s+/g, " ").trim();
+	return place.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}` : undefined;
+}
 const talkLabel = (outline: number | string | null) => (outline ? `Discurso público — bosquejo #${outline}` : "Discurso público");
 
 export async function getUserAssignments(db: Database, userId: string): Promise<PanelAssignment[]> {
@@ -156,9 +167,10 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			),
 		);
 
-	const ownCongregation = weekendRows.some((r) => r.speakerUserId === userId)
-		? ((await db.select({ name: congregations.name }).from(congregations).limit(1))[0]?.name ?? "")
-		: "";
+	const own = weekendRows.some((r) => r.speakerUserId === userId)
+		? (await db.select({ name: congregations.name, address: congregations.kingdomHallAddress }).from(congregations).limit(1))[0]
+		: undefined;
+	const ownTime = hhmm(schedules?.weekend?.time);
 	for (const row of weekendRows) {
 		if (isMeetingCancelled(row.status)) continue;
 		if (row.speakerUserId === userId) {
@@ -166,7 +178,8 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 				date: realDate(row.meetingDate, "weekend"),
 				meetingType: "weekend",
 				label: talkLabel(row.outlineNumber),
-				detail: ownCongregation || undefined,
+				detail: [own?.name, ownTime].filter(Boolean).join(" · ") || undefined,
+				mapUrl: own ? mapsUrl({ name: own.name, address: own.address }) : undefined,
 				bucket: "meeting:weekend",
 			});
 		}
@@ -366,7 +379,11 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 	const outgoingRows = await db
 		.select({
 			meetingDate: outgoingTalks.meetingDate,
+			meetingTime: outgoingTalks.meetingTime,
 			congregationName: speakerCongregations.name,
+			address: speakerCongregations.address,
+			latitude: speakerCongregations.latitude,
+			longitude: speakerCongregations.longitude,
 			talkOutlineNumber: publicTalkOutlines.number,
 		})
 		.from(outgoingTalks)
@@ -380,7 +397,8 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			date: row.meetingDate,
 			meetingType: "outgoing_talk",
 			label: talkLabel(row.talkOutlineNumber),
-			detail: row.congregationName,
+			detail: [row.congregationName, hhmm(row.meetingTime)].filter(Boolean).join(" · "),
+			mapUrl: mapsUrl({ name: row.congregationName, address: row.address, latitude: row.latitude, longitude: row.longitude }),
 		});
 	}
 

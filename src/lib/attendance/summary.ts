@@ -4,8 +4,8 @@ import { addDays, mondayOf, parseISODate, toISODate } from "@/lib/mwb/dates";
 const DAY_OFFSET: Record<string, number> = { lunes: 0, martes: 1, miercoles: 2, jueves: 3, viernes: 4, sabado: 5, domingo: 6 };
 
 export interface MeetingSchedules {
-	midweek?: { day?: string } | null;
-	weekend?: { day?: string } | null;
+	midweek?: { day?: string; time?: string } | null;
+	weekend?: { day?: string; time?: string } | null;
 }
 
 export interface AttendanceRow {

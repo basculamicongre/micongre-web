@@ -105,6 +105,18 @@ export function MyAssignments({
 										<p className="mt-0.5 text-[13px] text-ink-soft">«{territory.comment}»</p>
 									)}
 								</div>
+								{item.mapUrl && (
+									<a
+										href={item.mapUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										aria-label="Ver la ubicación en el mapa"
+										title="Ver la ubicación en el mapa"
+										className="flex size-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-surface-alt"
+									>
+										<MapIcon size={20} />
+									</a>
+								)}
 								{territory && pending && (
 									<>
 										<IconButton label="Ver el mapa" icon={MapIcon} onClick={() => setMapFor(territory.territoryId)} />
