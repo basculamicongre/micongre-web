@@ -294,7 +294,7 @@ function SessionBody({ s }: { s: SessionRow }) {
 			</div>
 			{/* Lugar de reunión de cada territorio (solo el texto). */}
 			{[...new Set(s.territories.map((t) => t.meetingPlace).filter(Boolean))].map((place) => (
-				<div key={place} className="mt-1 pr-3 text-[13px] font-medium text-ink">
+				<div key={place} className="mt-1 whitespace-pre-line pr-3 text-[13px] font-medium text-ink">
 					{place}
 				</div>
 			))}

@@ -112,8 +112,13 @@ function TerritoriesTab({ hallAddress }: { hallAddress: string | null }) {
 							title={t.name ?? TERRITORY_KIND_LABEL[t.kind]}
 							subtitle={
 								<>
-									{[t.name ? TERRITORY_KIND_LABEL[t.kind] : null, t.hasMap ? null : "sin mapa"].filter(Boolean).join(" · ")}
+									{t.meetingPlace && <span className="block whitespace-pre-line text-ink">{t.meetingPlace}</span>}
 									{t.notes && <span className="block">{t.notes}</span>}
+									{(t.name || !t.hasMap) && (
+										<span className="block">
+											{[t.name ? TERRITORY_KIND_LABEL[t.kind] : null, t.hasMap ? null : "sin mapa"].filter(Boolean).join(" · ")}
+										</span>
+									)}
 								</>
 							}
 							trailing={
@@ -253,13 +258,17 @@ function TerritoryFormModal({
 					<option value="general">{TERRITORY_KIND_LABEL.general}</option>
 					<option value="public_preaching">{TERRITORY_KIND_LABEL.public_preaching}</option>
 				</Select>
-				<Input
-					label="Lugar de reunión (opcional)"
-					placeholder="p. ej. Casa de la familia López, frente al parque"
-					value={meetingPlace}
-					onChange={(e) => setMeetingPlace(e.target.value)}
-					maxLength={150}
-				/>
+				<label className="flex flex-col gap-1 text-sm">
+					<span className="font-medium text-ink">Lugar de reunión (opcional)</span>
+					<textarea
+						placeholder="p. ej. Casa de la familia López, frente al parque"
+						value={meetingPlace}
+						onChange={(e) => setMeetingPlace(e.target.value)}
+						maxLength={500}
+						rows={3}
+						className="rounded-2xl border border-border bg-surface px-4 py-3 text-base text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
+					/>
+				</label>
 				<Input label="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
 				{error && <p className="text-sm text-warn">{error}</p>}
 				<div className="flex items-center justify-end gap-2">

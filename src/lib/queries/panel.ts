@@ -317,7 +317,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 				date: s.sessionDate,
 				meetingType: "preaching",
 				label: `Predicación · ${time12(s.sessionTime)}${names ? ` — ${names}` : ""}${s.note ? ` (${s.note})` : ""}`,
-				detail: places.join(" · ") || undefined,
+				detail: places.join("\n") || undefined,
 				bucket: s.kind === "public_preaching" ? "preaching:public" : "preaching:group",
 				time: s.sessionTime,
 				territoryIds: list.map((t) => t.territoryId),
