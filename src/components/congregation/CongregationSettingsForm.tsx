@@ -8,6 +8,7 @@ import { PageHeader, SectionLabel } from "@/components/ui/Layout";
 import { DeleteAllDataCard } from "./DeleteAllDataCard";
 import { AnimationsCard } from "@/components/animations/AnimationsCard";
 import { JobsCard } from "./JobsCard";
+import { JwSyncCard } from "./JwSyncCard";
 import { centsToInputString, parseCentsInput } from "@/lib/money";
 import { PageLoader } from "@/components/ui/Spinner";
 import { AppQrCard } from "./AppQrCard";
@@ -19,6 +20,9 @@ interface CongregationResponse {
 	circuitId: string | null;
 	language: string | null;
 	kingdomHallAddress: string | null;
+	jwUrl: string | null;
+	latitude: number | null;
+	longitude: number | null;
 	publicUrl: string | null;
 	isContactCongregation: boolean;
 	cobeName: string | null;
@@ -132,12 +136,15 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 	const [saving, setSaving] = useState(false);
 	const [saved, setSaved] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [jw, setJw] = useState<{ jwUrl: string | null; latitude: number | null; longitude: number | null } | null>(null);
+	const [reloadKey, setReloadKey] = useState(0);
 
 	useEffect(() => {
 		fetch("/api/congregation").then(async (congRes) => {
 			if (!congRes.ok) return;
 			const data = (await congRes.json()) as CongregationResponse;
 			setForm(toFormState(data));
+			setJw({ jwUrl: data.jwUrl, latitude: data.latitude, longitude: data.longitude });
 			setReportTheme(data.reportTheme);
 			setCommittee({
 				cobeName: data.cobeName,
@@ -145,7 +152,7 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 				serviceOverseerName: data.serviceOverseerName,
 			});
 		});
-	}, []);
+	}, [reloadKey]);
 
 	function set<K extends keyof FormState>(key: K, value: FormState[K]) {
 		setSaved(false);
@@ -214,7 +221,13 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 
 			<section>
 				<SectionLabel>Datos generales</SectionLabel>
-				<Card>
+				<Card className="flex flex-col gap-3">
+					<JwSyncCard
+						jwUrl={jw?.jwUrl ?? null}
+						latitude={jw?.latitude ?? null}
+						longitude={jw?.longitude ?? null}
+						onSynced={() => setReloadKey((k) => k + 1)}
+					/>
 					<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 						<Input label="Nombre" value={form.name} onChange={(e) => set("name", e.target.value)} required />
 						<Input
@@ -225,14 +238,14 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 						<Input label="Circuito" value={form.circuitId} onChange={(e) => set("circuitId", e.target.value)} />
 						<Input label="Idioma" value={form.language} onChange={(e) => set("language", e.target.value)} />
 					</div>
-					<div className="mt-3">
+					<div>
 						<Input
 							label="Dirección del Salón del Reino"
 							value={form.kingdomHallAddress}
 							onChange={(e) => set("kingdomHallAddress", e.target.value)}
 						/>
 					</div>
-					<div className="mt-3">
+					<div>
 						<Input
 							label="Dirección pública de la app"
 							placeholder="https://mi-congregacion.micongre.app"
@@ -245,7 +258,7 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 							dirección interna del servidor nunca se muestra.
 						</p>
 					</div>
-					<label className="mt-4 flex min-h-11 items-center gap-3 text-sm text-ink">
+					<label className="flex min-h-11 items-center gap-3 text-sm text-ink">
 						<input
 							type="checkbox"
 							className="h-5 w-5 shrink-0 accent-accent"

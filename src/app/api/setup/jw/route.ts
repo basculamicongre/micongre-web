@@ -2,14 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { errorResponse } from "@/lib/api/errors";
-import { fetchHubCongregation, JwHubError, parseHubUrl } from "@/lib/jw/hub";
+import { fetchHubCongregation, JwHubError, parseHubUrl, weekdayName as weekday } from "@/lib/jw/hub";
 import { setupFailureResponse } from "@/lib/setup/http";
 import { assertSetupOpen } from "@/lib/setup/service";
 
 const bodySchema = z.object({ url: z.string().trim().min(1).max(2000) });
-
-const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const weekday = (n: number | null) => (n != null ? (WEEKDAYS[n] ?? "") : "");
 
 // Datos de una congregación desde el JW Hub, a partir de su enlace oficial —
 // para precargar el paso "Congregación" del asistente (opcional). Público y

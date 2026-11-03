@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
 // Una sola fila (id fijo CONGREGATION_ROW_ID) — la app administra una única
@@ -11,6 +11,11 @@ export const congregations = sqliteTable("congregations", {
 	circuitId: text("circuit_id"),
 	language: text("language"),
 	kingdomHallAddress: text("kingdom_hall_address"),
+	// Enlace del JW Hub y coordenadas del Salón (migración 0073): «Actualizar desde JW.ORG» y el job diario los llenan.
+	jwUrl: text("jw_url"),
+	latitude: real("latitude"),
+	longitude: real("longitude"),
+	jwSyncedAt: integer("jw_synced_at", { mode: "timestamp" }),
 	isContactCongregation: integer("is_contact_congregation", { mode: "boolean" }).notNull().default(false),
 	cobeUserId: text("cobe_user_id").references(() => users.id),
 	secretaryUserId: text("secretary_user_id").references(() => users.id),

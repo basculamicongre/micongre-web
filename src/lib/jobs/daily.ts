@@ -1,6 +1,7 @@
 import { and, eq, gte, isNotNull, lte, ne } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { Database } from "@/db/client";
+import { syncOwnCongregation } from "@/lib/jw/ownCongregation";
 import { midweekAssignments, midweekMeetings, speakerCongregations, weekendMeetings } from "@/db/schema";
 import { chunked } from "@/lib/cleaning/meetings";
 import { JwHubError, fetchHubCongregation, hubCongregationColumns, parseHubUrl } from "@/lib/jw/hub";
@@ -151,6 +152,12 @@ async function ensureWeekend(db: Database, mondays: string[]): Promise<number> {
 
 /** Congregaciones de arreglos con enlace de jw.org: vuelve a leer del Hub su día y hora de reunión (y demás datos). */
 async function syncCongregations(db: Database, out: DailyResult["congregations"]): Promise<void> {
+	// La nuestra también, si tiene enlace (Congregación → JW.ORG).
+	try {
+		if (await syncOwnCongregation(db)) out.updated++;
+	} catch (error) {
+		out.failed.push({ name: "Nuestra congregación", reason: error instanceof JwHubError ? error.code : "error" });
+	}
 	const rows = await db.select().from(speakerCongregations).where(isNotNull(speakerCongregations.jwUrl));
 	for (const current of rows) {
 		out.checked++;

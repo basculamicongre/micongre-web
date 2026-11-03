@@ -84,13 +84,9 @@ function nicaraguaDate(instant: Date): string {
 /** Solo el nombre del territorio (el número, si no tiene nombre). */
 const territoryName = (number: string, name: string | null) => name?.trim() || `Territorio ${number}`;
 const hhmm = (t: string | null | undefined) => (t && /^\d{1,2}:\d{2}/.test(t) ? time12(t.slice(0, 5)) : null);
-/** Enlace a Google Maps: por coordenadas si las hay; si no, buscando la dirección. */
-export function mapsUrl(place: { latitude?: number | null; longitude?: number | null; address?: string | null; name?: string | null }): string | undefined {
-	if (place.latitude != null && place.longitude != null) {
-		return `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`;
-	}
-	const text = [place.name, place.address].filter(Boolean).join(", ").replace(/\s+/g, " ").trim();
-	return place.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}` : undefined;
+/** Enlace a Google Maps con el punto exacto (coordenadas de JW.ORG); sin coordenadas no hay botón. */
+export function mapsUrl(place: { latitude?: number | null; longitude?: number | null }): string | undefined {
+	return place.latitude != null && place.longitude != null ? `https://www.google.com/maps?q=${place.latitude},${place.longitude}` : undefined;
 }
 const talkLabel = (outline: number | string | null) => (outline ? `Discurso público — bosquejo #${outline}` : "Discurso público");
 
@@ -168,7 +164,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		);
 
 	const own = weekendRows.some((r) => r.speakerUserId === userId)
-		? (await db.select({ name: congregations.name, address: congregations.kingdomHallAddress }).from(congregations).limit(1))[0]
+		? (await db.select({ name: congregations.name, latitude: congregations.latitude, longitude: congregations.longitude }).from(congregations).limit(1))[0]
 		: undefined;
 	const ownTime = hhmm(schedules?.weekend?.time);
 	for (const row of weekendRows) {
@@ -179,7 +175,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 				meetingType: "weekend",
 				label: talkLabel(row.outlineNumber),
 				detail: [own?.name, ownTime].filter(Boolean).join(" · ") || undefined,
-				mapUrl: own ? mapsUrl({ name: own.name, address: own.address }) : undefined,
+				mapUrl: own ? mapsUrl(own) : undefined,
 				bucket: "meeting:weekend",
 			});
 		}
@@ -381,7 +377,6 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			meetingDate: outgoingTalks.meetingDate,
 			meetingTime: outgoingTalks.meetingTime,
 			congregationName: speakerCongregations.name,
-			address: speakerCongregations.address,
 			latitude: speakerCongregations.latitude,
 			longitude: speakerCongregations.longitude,
 			talkOutlineNumber: publicTalkOutlines.number,
@@ -398,7 +393,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			meetingType: "outgoing_talk",
 			label: talkLabel(row.talkOutlineNumber),
 			detail: [row.congregationName, hhmm(row.meetingTime)].filter(Boolean).join(" · "),
-			mapUrl: mapsUrl({ name: row.congregationName, address: row.address, latitude: row.latitude, longitude: row.longitude }),
+			mapUrl: mapsUrl(row),
 		});
 	}
 

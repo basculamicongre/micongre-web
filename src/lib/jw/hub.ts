@@ -127,6 +127,10 @@ export async function fetchHubCongregation(locationId: string, eventId: string |
 	};
 }
 
+const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+/** Nombre del día (0 = domingo) como lo guarda Congregación → Horarios de reunión. */
+export const weekdayName = (n: number | null) => (n != null ? (WEEKDAYS[n] ?? "") : "");
+
 /** Columnas de `speaker_congregations` que se rellenan desde el Hub. */
 export function hubCongregationColumns(hub: HubCongregation, jwUrl: string) {
 	return {
