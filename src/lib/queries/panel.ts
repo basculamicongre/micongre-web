@@ -23,6 +23,8 @@ import {
 	users,
 	weekendMeetings,
 } from "@/db/schema";
+import { readMeetingSchedules } from "@/lib/assignments/stats";
+import { effectiveMeetingDate } from "@/lib/attendance/summary";
 import { CLEANING_KIND_LABEL, CLEANING_MEETING_LABEL, OWN_CONGREGATION_LABEL } from "@/lib/cleaning/labels";
 import { chunked, getCleaningMeetings, isMeetingCancelled } from "@/lib/cleaning/meetings";
 import { loadAssignees } from "@/lib/cleaning/tasks";
@@ -83,6 +85,10 @@ const talkLabel = (outline: number | string | null) => (outline ? `Discurso púb
 
 export async function getUserAssignments(db: Database, userId: string): Promise<PanelAssignment[]> {
 	const assignments: PanelAssignment[] = [];
+	// Las reuniones se guardan con el lunes (entre semana) o el sábado (fin de semana) de su semana: se muestran y se pasan
+	// al historial con el día en que de verdad se celebran.
+	const schedules = await readMeetingSchedules(db);
+	const realDate = (stored: string, type: "midweek" | "weekend") => effectiveMeetingDate(stored, type, schedules);
 
 	const midweekRows = await db
 		.select({
@@ -105,7 +111,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		const title = row.sectionTitle && row.partNumber ? `${row.partNumber}. ${row.sectionTitle}` : row.sectionTitle;
 		const label = title ? `${base} — ${title}` : base;
 		const role = row.mainAssigneeId === userId ? "" : " (ayudante)";
-		assignments.push({ date: row.meetingDate, meetingType: "midweek", label: `${label}${role}`, bucket: "meeting:midweek" });
+		assignments.push({ date: realDate(row.meetingDate, "midweek"), meetingType: "midweek", label: `${label}${role}`, bucket: "meeting:midweek" });
 	}
 
 	// Presidente y oración inicial viven en la reunión, no en midweek_assignments.
@@ -123,7 +129,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		const roles: string[] = [];
 		if (row.chairmanUserId === userId) roles.push("Presidente");
 		if (row.openingPrayerUserId === userId) roles.push("Oración inicial");
-		assignments.push({ date: row.meetingDate, meetingType: "midweek", label: roles.join(" · "), bucket: "meeting:midweek" });
+		assignments.push({ date: realDate(row.meetingDate, "midweek"), meetingType: "midweek", label: roles.join(" · "), bucket: "meeting:midweek" });
 	}
 
 	const weekendRows = await db
@@ -157,7 +163,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		if (isMeetingCancelled(row.status)) continue;
 		if (row.speakerUserId === userId) {
 			assignments.push({
-				date: row.meetingDate,
+				date: realDate(row.meetingDate, "weekend"),
 				meetingType: "weekend",
 				label: talkLabel(row.outlineNumber),
 				detail: ownCongregation || undefined,
@@ -169,7 +175,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		if (row.watchtowerConductorId === userId) roles.push("Conductor de La Atalaya");
 		if (row.watchtowerReaderId === userId) roles.push("Lector de La Atalaya");
 		if (row.prayerUserId === userId) roles.push("Oración");
-		if (roles.length) assignments.push({ date: row.meetingDate, meetingType: "weekend", label: roles.join(" · "), bucket: "meeting:weekend" });
+		if (roles.length) assignments.push({ date: realDate(row.meetingDate, "weekend"), meetingType: "weekend", label: roles.join(" · "), bucket: "meeting:weekend" });
 	}
 
 	const operationalRows = await db
@@ -198,8 +204,9 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		const dateById = new Map([...midweekDates, ...weekendDates].filter((m) => !isMeetingCancelled(m.status)).map((m) => [m.id, m.meetingDate]));
 
 		for (const row of operationalRows) {
-			const date = dateById.get(row.meetingId);
-			if (!date) continue;
+			const stored = dateById.get(row.meetingId);
+			if (!stored) continue;
+			const date = realDate(stored, row.meetingType);
 			const label = row.position ? `${row.privilegeName} — ${row.position}` : row.privilegeName;
 			assignments.push({ date, meetingType: "operational", label, bucket: `meeting:${row.meetingType}` });
 		}
@@ -265,7 +272,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 				const meeting = meetingByKey.get(`${task.meetingType}:${task.meetingId}`);
 				if (!meeting || meeting.cancelled) continue;
 				assignments.push({
-					date: meeting.date,
+					date: realDate(meeting.date, task.meetingType),
 					meetingType: "cleaning",
 					label: `${kindLabel} — ${who} (${CLEANING_MEETING_LABEL[task.meetingType]})${together}`,
 				});
