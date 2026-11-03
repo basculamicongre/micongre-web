@@ -4,12 +4,15 @@ import { ArrowLeft } from "lucide-react";
 import { IconButton } from "@/components/ui/Layout";
 
 /** Marco de los mapas: en móvil ocupa toda la pantalla (mapa a sangre); en
- * escritorio es un diálogo grande centrado. El contenido llena todo el marco
- * y pone encima su propio encabezado y barras flotantes (`MapHeader`). */
-export function MapDialog({ children }: { children: React.ReactNode }) {
+ * escritorio es un diálogo grande centrado, o toda la ventana con `maximized`.
+ * El contenido llena todo el marco y pone encima su propio encabezado y barras
+ * flotantes (`MapHeader`). */
+export function MapDialog({ children, maximized = false }: { children: React.ReactNode; maximized?: boolean }) {
 	return (
-		<div className="fixed inset-0 z-50 bg-surface-alt md:flex md:items-center md:justify-center md:bg-black/40 md:p-4">
-			<div className="relative h-full w-full overflow-hidden bg-surface-alt md:h-[92dvh] md:max-w-5xl md:rounded-[28px] md:shadow-xl">
+		<div className={`fixed inset-0 z-50 bg-surface-alt ${maximized ? "" : "md:flex md:items-center md:justify-center md:bg-black/40 md:p-4"}`}>
+			<div
+				className={`relative h-full w-full overflow-hidden bg-surface-alt ${maximized ? "" : "md:h-[92dvh] md:max-w-5xl md:rounded-[28px] md:shadow-xl"}`}
+			>
 				{children}
 			</div>
 		</div>

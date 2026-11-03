@@ -173,7 +173,7 @@ export class TerritoryMapController {
 				type: "fill",
 				source: SHAPES,
 				filter: ["==", ["geometry-type"], "Polygon"],
-				paint: { "fill-color": POLYGON_COLOR, "fill-opacity": 0.18 },
+				paint: { "fill-color": ["coalesce", ["get", "color"], POLYGON_COLOR], "fill-opacity": 0.18 },
 			},
 			firstSymbol,
 		);
@@ -184,7 +184,7 @@ export class TerritoryMapController {
 				source: SHAPES,
 				filter: ["==", ["geometry-type"], "Polygon"],
 				layout: { "line-join": "round" },
-				paint: { "line-color": POLYGON_COLOR, "line-width": 3 },
+				paint: { "line-color": ["coalesce", ["get", "color"], POLYGON_COLOR], "line-width": 3 },
 			},
 			firstSymbol,
 		);
@@ -195,7 +195,7 @@ export class TerritoryMapController {
 				source: SHAPES,
 				filter: ["==", ["geometry-type"], "LineString"],
 				layout: { "line-cap": "round", "line-join": "round" },
-				paint: { "line-color": LINE_COLOR, "line-width": 4 },
+				paint: { "line-color": ["coalesce", ["get", "color"], LINE_COLOR], "line-width": 4 },
 			},
 			firstSymbol,
 		);
@@ -488,7 +488,7 @@ export class TerritoryMapController {
 				.map((f) => ({
 					type: "Feature" as const,
 					geometry: f.geometry as GeoJSON.Geometry,
-					properties: { fid: f.properties.fid, sel: f.properties.fid === this.selectedId },
+					properties: { fid: f.properties.fid, sel: f.properties.fid === this.selectedId, color: f.properties.color ?? null },
 				})),
 		});
 	}
@@ -572,7 +572,21 @@ export class TerritoryMapController {
 		el.style.cursor = this.opts.editable && this.tool === "select" ? "pointer" : "";
 		const ring = selected ? "0 0 0 3px #facc15" : "none";
 
-		if (f.properties.kind === "text") {
+		if (f.properties.kind === "text" && f.properties.color) {
+			// Rótulo de un territorio en el mapa de todos: su número sobre su color.
+			el.textContent = f.properties.text ?? "";
+			Object.assign(el.style, {
+				padding: "2px 8px",
+				borderRadius: "999px",
+				fontWeight: "700",
+				fontSize: "13px",
+				lineHeight: "1.3",
+				color: "#fff",
+				background: f.properties.color,
+				whiteSpace: "nowrap",
+				boxShadow: "0 1px 4px rgba(0,0,0,.35)",
+			});
+		} else if (f.properties.kind === "text") {
 			el.textContent = f.properties.text ?? "";
 			Object.assign(el.style, {
 				padding: "1px 4px",

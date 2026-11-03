@@ -9,6 +9,7 @@ import { Chip, ChipGroup, Fab, IconButton, List, ListRow, PageHeader, Segmented 
 import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { TERRITORY_KIND_LABEL, type TerritoryKind } from "@/lib/territories/geo";
+import { AllTerritoriesMap } from "./AllTerritoriesMap";
 import { AssignmentsTab } from "./AssignmentsTab";
 import { TerritoryMapEditor } from "./TerritoryMapEditor";
 import { TerritoryMapViewer } from "./TerritoryMapViewer";
@@ -47,6 +48,7 @@ function TerritoriesTab({ hallAddress }: { hallAddress: string | null }) {
 	const [formFor, setFormFor] = useState<Territory | "new" | null>(null);
 	const [viewId, setViewId] = useState<string | null>(null);
 	const [editMapId, setEditMapId] = useState<string | null>(null);
+	const [viewAll, setViewAll] = useState(false);
 
 	const load = useCallback(async () => {
 		const response = await fetch("/api/territories");
@@ -72,13 +74,24 @@ function TerritoriesTab({ hallAddress }: { hallAddress: string | null }) {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<ChipGroup>
-				{KIND_FILTERS.map((f) => (
-					<Chip key={f.value} active={kindFilter === f.value} onClick={() => setKindFilter(f.value)}>
-						{f.label}
-					</Chip>
-				))}
-			</ChipGroup>
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<ChipGroup>
+					{KIND_FILTERS.map((f) => (
+						<Chip key={f.value} active={kindFilter === f.value} onClick={() => setKindFilter(f.value)}>
+							{f.label}
+						</Chip>
+					))}
+				</ChipGroup>
+				{visible.some((t) => t.hasMap) && (
+					<Button
+						variant="secondary"
+						title="Todos los territorios en un solo mapa, para ver qué zonas quedan sin cubrir"
+						onClick={() => setViewAll(true)}
+					>
+						<MapIcon size={16} /> Ver todo
+					</Button>
+				)}
+			</div>
 
 			{message && <p className="px-1 text-sm text-ink-soft">{message}</p>}
 
@@ -121,6 +134,8 @@ function TerritoriesTab({ hallAddress }: { hallAddress: string | null }) {
 			)}
 
 			<Fab label="Nuevo" icon={Plus} onClick={() => setFormFor("new")} />
+
+			{viewAll && <AllTerritoriesMap kind={kindFilter === "all" ? null : kindFilter} onClose={() => setViewAll(false)} />}
 
 			{formFor && (
 				<TerritoryFormModal

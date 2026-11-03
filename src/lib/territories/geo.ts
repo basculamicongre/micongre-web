@@ -17,6 +17,8 @@ export interface TerritoryFeatureProperties {
 	text?: string;
 	/** Solo puntos: emoji que se muestra en lugar del punto (sin valor = punto). */
 	emoji?: string;
+	/** Solo en el mapa de todos los territorios (no se guarda): color del territorio; en un texto, rótulo con ese fondo. */
+	color?: string;
 }
 
 /** Emojis que ofrece el editor para los puntos (también se puede escribir otro). */

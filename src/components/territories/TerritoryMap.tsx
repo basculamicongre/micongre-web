@@ -81,7 +81,10 @@ export function TerritoryMap({
 	editable = false,
 	onChange,
 	searchHint,
+	headerActions,
 }: {
+	/** Botones extra a la derecha del encabezado (p. ej. maximizar). */
+	headerActions?: React.ReactNode;
 	kind: TerritoryKind;
 	/** Encabezado flotante del mapa (volver + título). */
 	title: string;
@@ -286,6 +289,7 @@ export function TerritoryMap({
 						<IconButton label="Ir a mi ubicación" icon={LocateFixed} onClick={goToMyLocation} />
 					</>
 				)}
+				{headerActions}
 			</MapHeader>
 
 			{editable && searchOpen && (

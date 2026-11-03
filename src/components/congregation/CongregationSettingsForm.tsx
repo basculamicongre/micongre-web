@@ -31,6 +31,7 @@ interface CongregationResponse {
 	reportTheme: string | null;
 	skipOpeningPrayer: boolean;
 	animationsEnabled: boolean;
+	mapsVisibleToAll: boolean;
 	preachingTime: string | null;
 	reminderHour: number | null;
 	linkCongregationUrl: string | null;
@@ -65,6 +66,7 @@ interface FormState {
 	maxSinglePaymentLimit: string;
 	skipOpeningPrayer: boolean;
 	animationsEnabled: boolean;
+	mapsVisibleToAll: boolean;
 	preachingTime: string;
 	reminderHour: string;
 	linkCongregationUrl: string;
@@ -100,6 +102,7 @@ function toFormState(data: CongregationResponse): FormState {
 		maxSinglePaymentLimit: centsToInputString(data.maxSinglePaymentLimitCents),
 		skipOpeningPrayer: data.skipOpeningPrayer,
 		animationsEnabled: data.animationsEnabled ?? false,
+		mapsVisibleToAll: data.mapsVisibleToAll ?? false,
 		preachingTime: data.preachingTime ?? "",
 		reminderHour: data.reminderHour === null ? "" : String(data.reminderHour),
 		linkCongregationUrl: data.linkCongregationUrl ?? "",
@@ -173,6 +176,7 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 				maxSinglePaymentLimitCents: parseCentsInput(form.maxSinglePaymentLimit),
 				skipOpeningPrayer: form.skipOpeningPrayer,
 				animationsEnabled: form.animationsEnabled,
+				mapsVisibleToAll: form.mapsVisibleToAll,
 				preachingTime: form.preachingTime || null,
 				reminderHour: form.reminderHour === "" ? null : Number(form.reminderHour),
 				linkCongregationUrl: form.linkCongregationUrl.trim() || null,
@@ -389,6 +393,27 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 							onChange={(e) => set("maxSinglePaymentLimit", e.target.value)}
 						/>
 					</div>
+				</Card>
+			</section>
+
+			<section>
+				<SectionLabel>Mapas de territorios</SectionLabel>
+				<Card>
+					<label className="flex min-h-11 items-start gap-3 text-sm text-ink">
+						<input
+							type="checkbox"
+							className="mt-0.5 h-5 w-5 shrink-0 accent-accent"
+							checked={form.mapsVisibleToAll}
+							onChange={(e) => set("mapsVisibleToAll", e.target.checked)}
+						/>
+						<span>
+							Mostrar los mapas a todos los publicadores
+							<span className="block text-xs text-ink-soft">
+								En Predicación, cualquiera podrá ver el mapa del territorio de una salida. Si está apagado, solo lo ve quien puede recibir
+								territorios de ese tipo. Nadie más que quien administra territorios puede editar un mapa.
+							</span>
+						</span>
+					</label>
 				</Card>
 			</section>
 
