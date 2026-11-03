@@ -13,6 +13,8 @@ export interface Congregation {
 	phone: string | null;
 	jwUrl: string | null;
 	forkUrl: string | null;
+	latitude: number | null;
+	longitude: number | null;
 	weekendMeetingDay: number | null;
 	weekendMeetingTime: string | null;
 	midweekMeetingDay: number | null;
@@ -26,6 +28,7 @@ const ERRORS: Record<string, string> = {
 	search_link: "Ese enlace es de una búsqueda, no de una congregación. Abre la congregación en JW.ORG, toca «Compartir» y pega aquí el enlace o el texto que se copia.",
 	not_found: "No se encontró la congregación en JW.ORG.",
 	unavailable: "No se pudo contactar a JW.ORG. Inténtalo de nuevo.",
+	no_jw_url: "Pega primero el enlace de la congregación en JW.ORG.",
 	name_conflict: "JW.ORG cambió el nombre a uno que ya existe en otra congregación.",
 };
 
@@ -62,10 +65,13 @@ async function postJson(url: string, body?: unknown): Promise<{ congregation?: C
 /** Botón de refrescar los datos de una congregación desde JW.ORG. */
 export function SyncFromHubButton({
 	congregationId,
+	url,
 	onSaved,
 	onError,
 }: {
 	congregationId: string;
+	/** Enlace nuevo de JW.ORG (para enlazarla o cambiarlo); sin él se usa el guardado. */
+	url?: string;
 	onSaved: (c: Congregation) => void;
 	onError: (message: string) => void;
 }) {
@@ -73,7 +79,7 @@ export function SyncFromHubButton({
 
 	async function sync() {
 		setBusy(true);
-		const result = await postJson(`/api/weekend/congregations/${congregationId}/sync`);
+		const result = await postJson(`/api/weekend/congregations/${congregationId}/sync`, url?.trim() ? { url: url.trim() } : undefined);
 		setBusy(false);
 		if (!result.congregation) {
 			onError(result.error!);

@@ -38,6 +38,9 @@ export const createSpeakerCongregationSchema = z.object({
 
 export const updateSpeakerCongregationSchema = createSpeakerCongregationSchema.partial().extend({
 	forkUrl: z.string().nullable().optional(),
+	// Ubicación del Salón (normalmente la trae JW.ORG; se puede corregir a mano).
+	latitude: z.number().min(-90).max(90).nullable().optional(),
+	longitude: z.number().min(-180).max(180).nullable().optional(),
 });
 
 // Alta desde el enlace del JW Hub (la UI ya no pide el nombre a mano).

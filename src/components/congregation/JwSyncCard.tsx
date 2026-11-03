@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, MapPin, RefreshCw } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { JW_HUB_SEARCH_URL } from "@/lib/jw/hub";
@@ -18,13 +18,9 @@ const ERRORS: Record<string, string> = {
  * reunión (y el job diario lo repite cada mañana). La ubicación es la que abre el botón de mapa de los discursos en Mi Panel. */
 export function JwSyncCard({
 	jwUrl,
-	latitude,
-	longitude,
 	onSynced,
 }: {
 	jwUrl: string | null;
-	latitude: number | null;
-	longitude: number | null;
 	onSynced: () => void;
 }) {
 	const [url, setUrl] = useState("");
@@ -51,8 +47,6 @@ export function JwSyncCard({
 			setBusy(false);
 		}
 	}
-
-	const hasLocation = latitude != null && longitude != null;
 
 	return (
 		<div className="flex flex-col gap-3 rounded-2xl bg-surface-alt p-4">
@@ -82,16 +76,6 @@ export function JwSyncCard({
 					<ExternalLink size={15} /> Buscar en JW.ORG
 				</a>
 			</div>
-			{hasLocation && (
-				<a
-					href={`https://www.google.com/maps?q=${latitude},${longitude}`}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-accent hover:underline"
-				>
-					<MapPin size={15} /> Ver la ubicación del Salón
-				</a>
-			)}
 			{message && <p className="text-sm text-ink">{message}</p>}
 		</div>
 	);

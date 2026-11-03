@@ -4,11 +4,12 @@ import { getDb } from "@/db/client";
 import { speakerCongregations } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
-import { JwHubError, fetchHubCongregation, hubCongregationColumns, parseHubUrl } from "@/lib/jw/hub";
+import { JwHubError, extractHubUrl, fetchHubCongregation, hubCongregationColumns, parseHubUrl } from "@/lib/jw/hub";
 import { assertCanAccessWeekendModule } from "@/lib/rbac/guards";
 
-// Vuelve a leer del JW Hub los datos de una congregación que ya tiene enlace.
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+// Vuelve a leer del JW Hub los datos de una congregación (nombre, teléfono, dirección, coordenadas y horarios). Con `{ url }`
+// (enlace o texto de «Compartir») la enlaza o le cambia el enlace; sin él usa el que ya tiene.
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const session = await getSession();
 		assertCanAccessWeekendModule(session);
@@ -17,9 +18,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 		const db = getDb();
 		const [current] = await db.select().from(speakerCongregations).where(eq(speakerCongregations.id, id));
 		if (!current) return NextResponse.json({ error: "not_found" }, { status: 404 });
-		if (!current.jwUrl) return NextResponse.json({ error: "no_jw_url" }, { status: 400 });
+		const body = (await request.json().catch(() => null)) as { url?: unknown } | null;
+		const pasted = typeof body?.url === "string" && body.url.trim() ? body.url.trim().slice(0, 2000) : null;
+		const jwUrl = pasted ? extractHubUrl(pasted) : current.jwUrl;
+		if (!jwUrl) return NextResponse.json({ error: "no_jw_url" }, { status: 400 });
 
-		const { locationId, eventId } = parseHubUrl(current.jwUrl);
+		const { locationId, eventId } = parseHubUrl(jwUrl);
 		const hub = await fetchHubCongregation(locationId, eventId);
 
 		// El Hub puede haber renombrado la congregación a un nombre ya usado.
@@ -31,7 +35,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
 		const [congregation] = await db
 			.update(speakerCongregations)
-			.set(hubCongregationColumns(hub, current.jwUrl))
+			.set(hubCongregationColumns(hub, jwUrl))
 			.where(eq(speakerCongregations.id, id))
 			.returning();
 

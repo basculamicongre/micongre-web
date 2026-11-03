@@ -8,6 +8,7 @@ import { PageHeader, SectionLabel } from "@/components/ui/Layout";
 import { DeleteAllDataCard } from "./DeleteAllDataCard";
 import { AnimationsCard } from "@/components/animations/AnimationsCard";
 import { JobsCard } from "./JobsCard";
+import { CoordinateFields, parseCoord } from "./CoordinateFields";
 import { JwSyncCard } from "./JwSyncCard";
 import { centsToInputString, parseCentsInput } from "@/lib/money";
 import { PageLoader } from "@/components/ui/Spinner";
@@ -59,6 +60,8 @@ interface FormState {
 	circuitId: string;
 	language: string;
 	kingdomHallAddress: string;
+	latitude: string;
+	longitude: string;
 	publicUrl: string;
 	isContactCongregation: boolean;
 	midweekDay: string;
@@ -95,6 +98,8 @@ function toFormState(data: CongregationResponse): FormState {
 		circuitId: data.circuitId ?? "",
 		language: data.language ?? "",
 		kingdomHallAddress: data.kingdomHallAddress ?? "",
+		latitude: data.latitude != null ? String(data.latitude) : "",
+		longitude: data.longitude != null ? String(data.longitude) : "",
 		publicUrl: data.publicUrl ?? "",
 		isContactCongregation: data.isContactCongregation,
 		midweekDay: data.meetingSchedules?.midweek?.day ?? "",
@@ -136,7 +141,7 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 	const [saving, setSaving] = useState(false);
 	const [saved, setSaved] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
-	const [jw, setJw] = useState<{ jwUrl: string | null; latitude: number | null; longitude: number | null } | null>(null);
+	const [jw, setJw] = useState<{ jwUrl: string | null } | null>(null);
 	const [reloadKey, setReloadKey] = useState(0);
 
 	useEffect(() => {
@@ -144,7 +149,7 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 			if (!congRes.ok) return;
 			const data = (await congRes.json()) as CongregationResponse;
 			setForm(toFormState(data));
-			setJw({ jwUrl: data.jwUrl, latitude: data.latitude, longitude: data.longitude });
+			setJw({ jwUrl: data.jwUrl });
 			setReportTheme(data.reportTheme);
 			setCommittee({
 				cobeName: data.cobeName,
@@ -172,6 +177,8 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 				circuitId: form.circuitId || null,
 				language: form.language || null,
 				kingdomHallAddress: form.kingdomHallAddress || null,
+				latitude: parseCoord(form.latitude),
+				longitude: parseCoord(form.longitude),
 				publicUrl: form.publicUrl.trim() || null,
 				isContactCongregation: form.isContactCongregation,
 				meetingSchedules: {
@@ -224,8 +231,6 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 				<Card className="flex flex-col gap-3">
 					<JwSyncCard
 						jwUrl={jw?.jwUrl ?? null}
-						latitude={jw?.latitude ?? null}
-						longitude={jw?.longitude ?? null}
 						onSynced={() => setReloadKey((k) => k + 1)}
 					/>
 					<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -245,6 +250,12 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 							onChange={(e) => set("kingdomHallAddress", e.target.value)}
 						/>
 					</div>
+					<CoordinateFields
+						latitude={form.latitude}
+						longitude={form.longitude}
+						onLatitude={(v) => set("latitude", v)}
+						onLongitude={(v) => set("longitude", v)}
+					/>
 					<div>
 						<Input
 							label="Dirección pública de la app"

@@ -39,6 +39,8 @@ export const updateCongregationSchema = z.object({
 	circuitId: z.string().optional().nullable(),
 	language: z.string().optional().nullable(),
 	kingdomHallAddress: z.string().optional().nullable(),
+	latitude: z.number().min(-90).max(90).optional().nullable(),
+	longitude: z.number().min(-180).max(180).optional().nullable(),
 	isContactCongregation: z.boolean().optional(),
 	// cobeUserId/secretaryUserId/serviceOverseerUserId ya no se editan aquí —
 	// se derivan de los nombramientos (ver PUT /api/publishers/[id]/appointments).

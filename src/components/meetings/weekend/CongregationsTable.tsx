@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { CoordinateFields, parseCoord } from "@/components/congregation/CoordinateFields";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IconButton, List, ListRow } from "@/components/ui/Layout";
@@ -26,6 +27,9 @@ function EditCongregationModal({
 	const [name, setName] = useState(c.name);
 	const [phone, setPhone] = useState(c.phone ?? "");
 	const [forkUrl, setForkUrl] = useState(c.forkUrl ?? "");
+	const [jwLink, setJwLink] = useState("");
+	const [latitude, setLatitude] = useState(c.latitude != null ? String(c.latitude) : "");
+	const [longitude, setLongitude] = useState(c.longitude != null ? String(c.longitude) : "");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +43,8 @@ function EditCongregationModal({
 			name: name.trim(),
 			phone: phone.trim() || null,
 			forkUrl: forkUrl.trim() || null,
+			latitude: parseCoord(latitude),
+			longitude: parseCoord(longitude),
 		});
 		setBusy(false);
 		if (!result.ok) {
@@ -52,23 +58,42 @@ function EditCongregationModal({
 	return (
 		<Modal open onClose={onClose} title="Editar congregación">
 			<div className="flex flex-col gap-3">
-				{c.jwUrl && (
-					<div className="flex items-center justify-between gap-2 rounded-2xl border border-border px-4 py-2">
-						<p className="text-xs text-ink-soft">
-							{weekend ? `Fin de semana: ${weekend}` : "Sin horario de fin de semana"}
-							{midweek ? ` · Entre semana: ${midweek}` : ""}
-						</p>
+				<div className="flex flex-col gap-2 rounded-2xl border border-border px-4 py-3">
+					<p className="text-xs text-ink-soft">
+						{c.jwUrl ? (
+							<>
+								{weekend ? `Fin de semana: ${weekend}` : "Sin horario de fin de semana"}
+								{midweek ? ` · Entre semana: ${midweek}` : ""}
+							</>
+						) : (
+							"Sin enlace de JW.ORG: pega el de «Compartir» para traer horarios, dirección y ubicación del Salón."
+						)}
+					</p>
+					<div className="flex items-end gap-2">
+						<div className="min-w-0 flex-1">
+							<Input
+								label="Enlace de JW.ORG"
+								value={jwLink}
+								onChange={(e) => setJwLink(e.target.value)}
+								placeholder={c.jwUrl ? "Guardado (pega otro para cambiarlo)" : "Pega el enlace o el texto que copia JW.ORG"}
+							/>
+						</div>
 						<SyncFromHubButton
 							congregationId={c.id}
+							url={jwLink}
 							onSaved={(updated) => {
 								onSaved(updated);
 								setName(updated.name);
 								setPhone(updated.phone ?? "");
+								setLatitude(updated.latitude != null ? String(updated.latitude) : "");
+								setLongitude(updated.longitude != null ? String(updated.longitude) : "");
+								setJwLink("");
 							}}
 							onError={setError}
 						/>
 					</div>
-				)}
+					<CoordinateFields latitude={latitude} longitude={longitude} onLatitude={setLatitude} onLongitude={setLongitude} />
+				</div>
 				<Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
 				<Input label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
 				<Input
