@@ -1,11 +1,12 @@
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db/client";
-import { shepherdingVisitRequests, theocraticAppointments, users } from "@/db/schema";
+import { shepherdingVisitRequests, users } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
+import { getEligiblePublishers } from "@/lib/rbac/eligibility";
 import { assertIsServiceCommittee } from "@/lib/rbac/guards";
-import { notHiddenAdmin } from "@/lib/rbac/visibility";
+import { PRIVILEGE_IDS } from "@/lib/rbac/roles";
 
 export async function GET() {
 	try {
@@ -13,7 +14,7 @@ export async function GET() {
 		if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 		const db = getDb();
 		await assertIsServiceCommittee(db, session);
-		const [requestRows, elderRows] = await Promise.all([
+		const [requestRows, visitorRows] = await Promise.all([
 			db
 				.select({
 					id: shepherdingVisitRequests.id,
@@ -28,23 +29,11 @@ export async function GET() {
 				.from(shepherdingVisitRequests)
 				.innerJoin(users, eq(users.id, shepherdingVisitRequests.publisherId))
 				.orderBy(desc(shepherdingVisitRequests.requestedDate)),
-			db
-				.select({ id: users.id, fullName: users.fullName })
-				.from(users)
-				.innerJoin(
-					theocraticAppointments,
-					and(
-						eq(theocraticAppointments.userId, users.id),
-						eq(theocraticAppointments.appointmentType, "elder"),
-						isNull(theocraticAppointments.endDate),
-					),
-				)
-				.where(notHiddenAdmin)
-				.orderBy(asc(users.fullName)),
+			// Quienes pueden recibir un pastoreo: el privilegio «Realiza pastoreos» (todo anciano lo tiene solo; a otros se les otorga a mano).
+			getEligiblePublishers(db, PRIVILEGE_IDS.SHEPHERDING_VISITOR),
 		]);
 
-		// Resuelve por nombre (no solo la lista de ancianos ACTIVOS de arriba —
-		// un anciano asignado hace tiempo pudo dejar el nombramiento después).
+		// Resuelve por nombre (no solo la lista de arriba: alguien asignado hace tiempo pudo perder el privilegio después).
 		const assignedIds = new Set(
 			requestRows.flatMap((r) => (r.assignedElders ? (JSON.parse(r.assignedElders) as string[]) : [])),
 		);
@@ -60,7 +49,7 @@ export async function GET() {
 					? (JSON.parse(r.assignedElders) as string[]).map((id) => nameById.get(id) ?? "—")
 					: null,
 			})),
-			elders: elderRows,
+			elders: visitorRows.map((u) => ({ id: u.id, fullName: u.fullName })),
 		});
 	} catch (error) {
 		return errorResponse(error);

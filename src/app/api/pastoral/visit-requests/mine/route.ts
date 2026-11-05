@@ -5,6 +5,8 @@ import { shepherdingVisitRequests, users } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
 import { createVisitRequestSchema } from "@/lib/validation/pastoralCare";
+import { groupOverseerOf, initialVisitAssignees, visitRequestsByGroupOverseer } from "@/lib/pastoral/visitRequests";
+import { notifyUsers } from "@/lib/push/dispatch";
 
 export async function GET() {
 	try {
@@ -59,10 +61,24 @@ export async function POST(request: Request) {
 		}
 
 		const db = getDb();
+		// Con «Los superintendentes de grupo manejan los pastoreos solicitados», nace asignada al superintendente del grupo.
+		const byGroupOverseer = await visitRequestsByGroupOverseer(db);
+		const assignees = initialVisitAssignees({
+			byGroupOverseer,
+			overseerUserId: byGroupOverseer ? await groupOverseerOf(db, session.userId) : null,
+			publisherId: session.userId,
+		});
 		const [created] = await db
 			.insert(shepherdingVisitRequests)
-			.values({ ...parsed.data, publisherId: session.userId })
+			.values({ ...parsed.data, publisherId: session.userId, assignedElders: assignees ? JSON.stringify(assignees) : null })
 			.returning({ id: shepherdingVisitRequests.id });
+		if (assignees) {
+			await notifyUsers(db, assignees, {
+				title: "Pastoreo solicitado",
+				body: "Te asignaron un pastoreo solicitado. Lo puedes atender o reasignar desde Mi Panel.",
+				url: "/panel",
+			}).catch(() => {});
+		}
 
 		return NextResponse.json({ id: created.id }, { status: 201 });
 	} catch (error) {

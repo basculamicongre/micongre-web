@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 		const assignedElders = existing.assignedElders ? (JSON.parse(existing.assignedElders) as string[]) : [];
 		if (session.role !== "admin" && !assignedElders.includes(session.userId)) {
-			throw new RbacError("Solo los ancianos asignados pueden actualizar el seguimiento de este pastoreo.");
+			throw new RbacError("Solo quienes tienen asignado este pastoreo pueden actualizar su seguimiento.");
 		}
 
 		// Postergar: este queda como postergado y se crea otro para la nueva fecha, con el mismo publicador y los mismos 2 ancianos;
