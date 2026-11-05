@@ -15,6 +15,7 @@ import { getDefaultWatchtowerConductorId } from "@/lib/weekend/defaults";
 import { ensureSongsCatalog } from "@/lib/songs/catalog";
 import { importWatchtowerForWeeks } from "@/lib/weekend/watchtower";
 import { purgeOldOperations } from "@/lib/http/idempotency";
+import { purgeOldRefreshTokens } from "@/lib/auth/refresh";
 import { currentWeekStart, syncUpcomingMeetings, type SyncResult } from "@/lib/operational/template";
 import { nicaraguaToday, runRecurringPreaching, type RecurringResult } from "@/lib/preaching/recurring";
 
@@ -232,6 +233,11 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 			await purgeOldOperations(db);
 		} catch (error) {
 			console.error("daily_purge_operations_failed", error);
+		}
+		try {
+			await purgeOldRefreshTokens(db);
+		} catch (error) {
+			console.error("daily_purge_refresh_tokens_failed", error);
 		}
 	}
 	// Predicación recurrente: el día de cada salida se crea la de la semana siguiente (mientras siga el mismo capitán).

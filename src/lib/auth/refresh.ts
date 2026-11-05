@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import { refreshTokens, users } from "@/db/schema";
 import { getActivePrivilegeCodes } from "@/lib/rbac/eligibility";
@@ -136,4 +136,15 @@ async function tryRaceTolerantAccessToken(
 		clientType: successor.clientType,
 		user: { id: user.id, fullName: user.fullName, role: user.systemRole },
 	};
+}
+
+/**
+ * Limpieza (job diario): cada renovación deja la fila anterior revocada y nada las borraba. Se quitan las revocadas hace más de 60 días (ya no
+ * sirven ni para detectar el reuso de un token robado) y las vencidas (acceso de visita del SC o sesiones de antes de que dejaran de vencer).
+ */
+export async function purgeOldRefreshTokens(db: Database, keepDays = 60): Promise<void> {
+	const now = new Date();
+	await db
+		.delete(refreshTokens)
+		.where(or(lt(refreshTokens.revokedAt, new Date(now.getTime() - keepDays * 86_400_000)), lt(refreshTokens.expiresAt, now)));
 }

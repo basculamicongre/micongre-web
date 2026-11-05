@@ -10,6 +10,18 @@ import { useEffect, useRef } from "react";
 // suspendido) — la sesión solo debe terminar por un logout explícito.
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
+// Última renovación, compartida entre pestañas: al volver a la pestaña solo se renueva si ya pasó el intervalo (antes era en cada cambio de
+// pestaña, y cada renovación cuesta CPU del Worker; si el token venció de todos modos, el middleware lo renueva solo).
+const LAST_REFRESH_KEY = "mc_last_refresh";
+
+function lastRefreshAt(): number {
+	try {
+		return Number(localStorage.getItem(LAST_REFRESH_KEY) ?? 0);
+	} catch {
+		return 0;
+	}
+}
+
 export function SessionKeepAlive() {
 	const router = useRouter();
 	const inFlight = useRef(false);
@@ -19,9 +31,17 @@ export function SessionKeepAlive() {
 
 		async function refresh() {
 			if (inFlight.current) return;
+			if (Date.now() - lastRefreshAt() < REFRESH_INTERVAL_MS - 30_000) return;
 			inFlight.current = true;
 			try {
 				const response = await fetch("/api/auth/refresh", { method: "POST" });
+				if (response.ok) {
+					try {
+						localStorage.setItem(LAST_REFRESH_KEY, String(Date.now()));
+					} catch {
+						// Sin almacenamiento: se renueva en cada intervalo, como antes.
+					}
+				}
 				if (!response.ok && !cancelled) {
 					// Refresh token inválido/vencido/reusado, o cuenta deshabilitada:
 					// ahí sí la sesión terminó de verdad.
