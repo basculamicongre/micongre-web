@@ -17,6 +17,48 @@ export interface UpcomingWindow {
 
 const inWeek = (a: PanelAssignment, w: UpcomingWindow) => a.date >= w.weekStart && a.date <= w.weekEnd;
 
+/** Cuánto dura cada asignación con hora (minutos): la predicación unas 2 horas; la reunión, 1 h 45; la limpieza ligera, al terminar la reunión. */
+const DURATION_MIN: Partial<Record<PanelAssignment["meetingType"], number>> = {
+	preaching: 120,
+	midweek: 105,
+	weekend: 105,
+	operational: 105,
+	outgoing_talk: 105,
+	cleaning: 135,
+};
+
+/** Ahora en hora de Nicaragua (UTC−6, sin horario de verano): fecha AAAA-MM-DD y minutos desde medianoche. */
+export function nicaraguaNow(instant = new Date()): { date: string; minutes: number } {
+	const local = new Date(instant.getTime() - 6 * 3600 * 1000);
+	return { date: local.toISOString().slice(0, 10), minutes: local.getUTCHours() * 60 + local.getUTCMinutes() };
+}
+
+/**
+ * ¿Ya pasó? Lo de días anteriores, sí; lo de hoy con hora, cuando ya terminó (hora + duración de su tipo); lo de hoy sin hora (o que dura
+ * varios días, como la limpieza profunda) sigue siendo de hoy hasta que acabe el día.
+ */
+export function isOver(a: Pick<PanelAssignment, "date" | "dateEnd" | "time" | "meetingType">, now: { date: string; minutes: number }): boolean {
+	const last = a.dateEnd ?? a.date;
+	if (last < now.date) return true;
+	if (last > now.date || a.dateEnd || !a.time) return false;
+	const [h, m] = a.time.split(":").map(Number);
+	if (Number.isNaN(h) || Number.isNaN(m)) return false;
+	return now.minutes >= h * 60 + m + (DURATION_MIN[a.meetingType] ?? 0);
+}
+
+/**
+ * Hora local (Nicaragua) en que la asignación deja de ser próxima, «AAAA-MM-DDTHH:MM»: la app y el widget de Android la quitan a esa hora
+ * aunque no vuelvan a pedir Mi Panel. Solo para lo de un día con hora.
+ */
+export function untilOf(a: Pick<PanelAssignment, "date" | "dateEnd" | "time" | "meetingType">): string | undefined {
+	if (a.dateEnd || !a.time) return undefined;
+	const [h, m] = a.time.split(":").map(Number);
+	if (Number.isNaN(h) || Number.isNaN(m)) return undefined;
+	const end = new Date(`${a.date}T00:00:00Z`);
+	end.setUTCMinutes(h * 60 + m + (DURATION_MIN[a.meetingType] ?? 0));
+	return end.toISOString().slice(0, 16);
+}
+
 /** Recibe las próximas (ya filtradas por fecha) y deja solo lo que sigue de cada tipo, en orden de fecha. */
 export function selectUpcoming(items: PanelAssignment[], w: UpcomingWindow): PanelAssignment[] {
 	const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""));
@@ -60,5 +102,8 @@ export function selectUpcoming(items: PanelAssignment[], w: UpcomingWindow): Pan
 
 	return out
 		.sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""))
-		.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, ...rest }) => rest);
+		.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, ...rest }) => {
+			const until = untilOf({ ...rest, time: _time });
+			return until ? { ...rest, until } : rest;
+		});
 }

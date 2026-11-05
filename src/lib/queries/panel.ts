@@ -24,7 +24,7 @@ import {
 	weekendMeetings,
 } from "@/db/schema";
 import { readMeetingSchedules } from "@/lib/assignments/stats";
-import { effectiveMeetingDate } from "@/lib/attendance/summary";
+import { effectiveMeetingDate, type MeetingSchedules } from "@/lib/attendance/summary";
 import { CLEANING_KIND_LABEL, CLEANING_MEETING_LABEL, OWN_CONGREGATION_LABEL } from "@/lib/cleaning/labels";
 import { chunked, getCleaningMeetings, isMeetingCancelled } from "@/lib/cleaning/meetings";
 import { loadAssignees } from "@/lib/cleaning/tasks";
@@ -70,6 +70,8 @@ export interface PanelAssignment {
 	territoryIds?: string[];
 	when?: string;
 	nextSession?: string;
+	/** Próximas: hora local (Nicaragua, «AAAA-MM-DDTHH:MM») en que termina; después la app y el widget la dejan de mostrar. */
+	until?: string;
 }
 
 /** Junta las asignaciones de un publicador en los tres orígenes posibles
@@ -79,6 +81,12 @@ export interface PanelAssignment {
 /** Fecha (AAAA-MM-DD) de un instante en hora de Nicaragua (UTC−6, sin horario de verano): en UTC, lo asignado después de las 6 p. m. salía con fecha del día siguiente. */
 function nicaraguaDate(instant: Date): string {
 	return new Date(instant.getTime() - 6 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/** Hora (HH:MM) de la reunión según Congregación → horarios; undefined si no está configurada. */
+function meetingTime(schedules: MeetingSchedules | null, type: "midweek" | "weekend"): string | undefined {
+	const t = type === "midweek" ? schedules?.midweek?.time : schedules?.weekend?.time;
+	return t && /^\d{1,2}:\d{2}/.test(t) ? t.slice(0, 5).padStart(5, "0") : undefined;
 }
 
 /** Solo el nombre del territorio (el número, si no tiene nombre). */
@@ -284,6 +292,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 					date: realDate(meeting.date, task.meetingType),
 					meetingType: "cleaning",
 					label: `${kindLabel} — ${who} (${CLEANING_MEETING_LABEL[task.meetingType]})${together}`,
+					time: meetingTime(schedules, task.meetingType),
 				});
 			} else if (task.kind === "profunda" && task.weekStart) {
 				assignments.push({
@@ -394,6 +403,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			label: talkLabel(row.talkOutlineNumber),
 			detail: [row.congregationName, hhmm(row.meetingTime)].filter(Boolean).join(" · "),
 			mapUrl: mapsUrl(row),
+			time: row.meetingTime?.slice(0, 5) || undefined,
 		});
 	}
 
@@ -457,5 +467,11 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		}
 	}
 
+	// Las de reunión (partes, roles, acomodadores) llevan la hora de la reunión: así pasan al historial cuando la reunión termina.
+	for (const a of assignments) {
+		if (a.time) continue;
+		if (a.bucket === "meeting:midweek") a.time = meetingTime(schedules, "midweek");
+		else if (a.bucket === "meeting:weekend") a.time = meetingTime(schedules, "weekend");
+	}
 	return assignments.sort((a, b) => a.date.localeCompare(b.date));
 }

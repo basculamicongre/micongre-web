@@ -15,7 +15,7 @@ import {
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
 import { addDays, mondayOf, parseISODate, toISODate } from "@/lib/mwb/dates";
-import { selectUpcoming } from "@/lib/panel/upcoming";
+import { isOver, nicaraguaNow, selectUpcoming } from "@/lib/panel/upcoming";
 import { time12 } from "@/lib/export/builders/meetingDates";
 import { getUserAssignments } from "@/lib/queries/panel";
 import { PRIVILEGE_CODES, SERVICE_COMMITTEE_APPOINTMENTS } from "@/lib/rbac/roles";
@@ -30,7 +30,9 @@ export async function GET() {
 
 		const db = getDb();
 		// Hoy y la semana en curso, en hora de Nicaragua (UTC−6).
-		const today = new Date(Date.now() - 6 * 3_600_000).toISOString().slice(0, 10);
+		// Ahora en hora de Nicaragua: lo que ya terminó (predicación 2 h después, reunión al terminar) pasa al historial.
+		const now = nicaraguaNow();
+		const today = now.date;
 		const weekStart = toISODate(mondayOf(parseISODate(today)));
 		const weekEnd = toISODate(addDays(parseISODate(weekStart), 6));
 
@@ -83,7 +85,7 @@ export async function GET() {
 		const isResolvedTerritory = (a: (typeof assignments)[number]) => !!a.territory && !isPendingTerritory(a);
 		// Solo lo que sigue de cada tipo (ver lib/panel/upcoming.ts).
 		const upcoming = selectUpcoming(
-			assignments.filter((a) => isPendingTerritory(a) || (!isResolvedTerritory(a) && (a.dateEnd ?? a.date) >= today && a.date <= horizon)),
+			assignments.filter((a) => isPendingTerritory(a) || (!isResolvedTerritory(a) && !isOver(a, now) && a.date <= horizon)),
 			{ today, weekStart, weekEnd },
 		);
 		// Historial: solo los últimos 30 días.
@@ -93,7 +95,7 @@ export async function GET() {
 				(a) =>
 					a.bucket !== "talks_out" &&
 					!isPendingTerritory(a) &&
-					(isResolvedTerritory(a) ? a.date >= historyFrom : (a.dateEnd ?? a.date) < today && (a.dateEnd ?? a.date) >= historyFrom),
+					(isResolvedTerritory(a) ? a.date >= historyFrom : isOver(a, now) && (a.dateEnd ?? a.date) >= historyFrom),
 			)
 			.slice(-10)
 			.reverse()
