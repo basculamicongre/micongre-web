@@ -50,7 +50,7 @@ export function BottomNav({
 			{tabs.map((t) => {
 				const on = t.key === activeKey;
 				return (
-					<Link
+					<Link prefetch={false}
 						key={t.key}
 						href={t.href}
 						aria-current={on ? "page" : undefined}

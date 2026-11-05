@@ -33,7 +33,7 @@ export function Sidebar({
 	function link(item: NavItem) {
 		const on = item.href === active;
 		return (
-			<Link
+			<Link prefetch={false}
 				key={item.href}
 				href={item.href}
 				className={

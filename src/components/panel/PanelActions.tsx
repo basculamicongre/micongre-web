@@ -18,7 +18,7 @@ export function PanelActions({ userId, onRequestPastoralVisit }: { userId: strin
 				Solicitar visita
 			</Button>
 			<Tooltip content="Tarjeta de publicador (S-21)">
-				<Link href={`/publishers/${userId}/s21`} className={LINK_CLASS}>
+				<Link prefetch={false} href={`/publishers/${userId}/s21`} className={LINK_CLASS}>
 					Mi S-21
 				</Link>
 			</Tooltip>

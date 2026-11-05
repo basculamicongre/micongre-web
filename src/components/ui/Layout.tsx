@@ -121,7 +121,7 @@ export function ListRow({
 		</>
 	);
 	const cls = "flex min-h-14 items-center gap-3 px-4 py-3";
-	if (href) return <Link href={href} className={`${cls} hover:bg-surface-alt`}>{body}</Link>;
+	if (href) return <Link prefetch={false} href={href} className={`${cls} hover:bg-surface-alt`}>{body}</Link>;
 	if (onClick) return <button type="button" onClick={onClick} className={`${cls} w-full text-left hover:bg-surface-alt`}>{body}</button>;
 	return <div className={cls}>{body}</div>;
 }
@@ -193,7 +193,7 @@ export function Fab({
 	const cls =
 		"fixed bottom-[calc(72px+env(safe-area-inset-bottom)+20px)] right-5 z-30 inline-flex h-[52px] items-center gap-2 rounded-full bg-accent pl-4 pr-5 text-[15px] font-semibold text-accent-ink shadow-lg shadow-black/20 transition-colors hover:bg-accent-strong md:bottom-8 md:right-8 print:hidden";
 	return href ? (
-		<Link href={href} className={cls}>
+		<Link prefetch={false} href={href} className={cls}>
 			<Icon size={20} />
 			{label}
 		</Link>
