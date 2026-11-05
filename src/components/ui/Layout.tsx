@@ -165,7 +165,8 @@ export function IconButton({
 	return (
 		<Tooltip content={label}>
 			{href ? (
-				<Link href={href} aria-label={label} className={cls}>
+				// Sin precarga: en listas (p. ej. Personas) cada fila tiene uno y precargarlos todos agota la CPU del plan gratuito de Workers.
+				<Link href={href} prefetch={false} aria-label={label} className={cls}>
 					<Icon size={20} />
 				</Link>
 			) : (
