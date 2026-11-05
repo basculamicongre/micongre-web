@@ -365,7 +365,7 @@ export function PublisherTable({
 					const appointmentTypes = activeAppointmentTypes(row);
 					return (
 						<div key={row.id} className="flex items-center gap-1 pr-2 hover:bg-surface-alt md:pr-3">
-							<Link href={`/publishers/${row.id}`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-2">
+							<Link href={`/publishers/${row.id}`} prefetch={false} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-2">
 								<Avatar name={row.fullName} />
 								<div className="min-w-0 flex-1">
 									<div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-base font-semibold text-ink">

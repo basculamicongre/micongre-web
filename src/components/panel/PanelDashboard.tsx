@@ -72,7 +72,7 @@ export function PanelDashboard({ userId, fullName }: { userId: string; fullName:
 				<div className="hidden lg:block">
 					<PanelActions userId={userId} onRequestPastoralVisit={() => setRequestFormOpen(true)} />
 				</div>
-				<Link href="/profile" aria-label="Mi perfil" className="shrink-0 lg:hidden">
+				<Link prefetch={false} href="/profile" aria-label="Mi perfil" className="shrink-0 lg:hidden">
 					<Avatar name={fullName} size={44} />
 				</Link>
 			</div>

@@ -16,7 +16,7 @@ export function MyNotifications() {
 		<section>
 			<SectionLabel
 				right={
-					<Link href="/notifications" className="font-medium text-accent hover:underline">
+					<Link prefetch={false} href="/notifications" className="font-medium text-accent hover:underline">
 						{items.length > PREVIEW_COUNT ? `Ver todos (${items.length})` : "Ver todos"}
 					</Link>
 				}

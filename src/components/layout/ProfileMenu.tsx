@@ -91,7 +91,7 @@ export function ProfileMenu({ role, fullName }: { role: "admin" | "regular"; ful
 						</div>
 					)}
 					{notice && <p className="px-3 py-2 text-xs text-warn">{notice}</p>}
-					<Link
+					<Link prefetch={false}
 						href="/login?add=1"
 						onClick={() => setMenuOpen(false)}
 						className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-ink hover:bg-surface-alt"
@@ -99,7 +99,7 @@ export function ProfileMenu({ role, fullName }: { role: "admin" | "regular"; ful
 						<UserPlus size={15} />
 						Agregar cuenta
 					</Link>
-					<Link
+					<Link prefetch={false}
 						href="/profile"
 						onClick={() => setMenuOpen(false)}
 						className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-ink hover:bg-surface-alt"
