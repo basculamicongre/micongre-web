@@ -36,7 +36,7 @@ export async function GET() {
 
 		const [assignments, [me], myAppointments] = await Promise.all([
 			getUserAssignments(db, session.userId),
-			db.select({ fieldServiceGroupId: users.fieldServiceGroupId }).from(users).where(eq(users.id, session.userId)),
+			db.select({ fieldServiceGroupId: users.fieldServiceGroupId, theocraticStatus: users.theocraticStatus }).from(users).where(eq(users.id, session.userId)),
 			db
 				.select({ type: theocraticAppointments.appointmentType })
 				.from(theocraticAppointments)
@@ -192,7 +192,8 @@ export async function GET() {
 			if (clean(cong.zoomUrl)) links.push({ kind: "zoom", label: "Zoom", url: clean(cong.zoomUrl), color: "#2D8CFF" });
 		}
 
-		return NextResponse.json({ upcoming, history, group, links });
+		// canReport: los estudiantes todavía no informan (la app puede ocultar «Mi informe»).
+		return NextResponse.json({ upcoming, history, group, links, canReport: me?.theocraticStatus !== "student" });
 	} catch (error) {
 		return errorResponse(error);
 	}

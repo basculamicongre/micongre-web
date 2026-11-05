@@ -1,6 +1,6 @@
 // Informes de un mes agrupados por grupo de servicio: lo comparten la pestaña «Grupos» (`/api/reports/groups`) y su reporte descargable
 // (`lib/export/builders/informesGrupos.ts`), para que la pantalla y el archivo nunca muestren cosas distintas.
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import { fieldServiceGroups, serviceReports, theocraticAppointments, users } from "@/db/schema";
 import type { Session } from "@/lib/auth/session";
@@ -64,7 +64,8 @@ export function showProjectColumn(items: GroupReportRow[]): boolean {
 
 /** Informes del mes de las personas activas dentro del alcance de quien consulta (mismo criterio que la tabla S-4). Sin grupos a cargo: RbacError. */
 export async function loadGroupReports(db: Database, session: Session, year: number, month: number): Promise<GroupReports[]> {
-	const scope = [eq(users.congregationStatus, "active"), notHiddenAdmin];
+	// Los estudiantes todavía no informan: no salen en Informes.
+	const scope = [eq(users.congregationStatus, "active"), ne(users.theocraticStatus, "student"), notHiddenAdmin];
 	const groupIds = await getReportsGroupIds(db, session);
 	if (groupIds !== null) {
 		if (groupIds.length === 0) throw new RbacError("No supervisas ningún grupo de servicio.");
