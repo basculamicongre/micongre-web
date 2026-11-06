@@ -80,7 +80,7 @@ export function CoVisitBanner({ visit, which }: { visit: CoVisitInfo; which: "mi
 					{t.song ? ` · Canción ${t.song}` : ""}
 				</div>
 			))}
-			{which === "midweek" && <div className="mt-1 text-[13px] text-ink-soft">Reemplaza al Estudio bíblico de la congregación; sin sala auxiliar.</div>}
+			{which === "midweek" && <div className="mt-1 text-[13px] text-ink-soft">Reemplaza al Estudio bíblico de la congregación; su canción es la final de la reunión; sin sala auxiliar.</div>}
 			{which === "weekend" && <div className="mt-1 text-[13px] text-ink-soft">El estudio de La Atalaya dura 30 minutos.</div>}
 		</div>
 	);

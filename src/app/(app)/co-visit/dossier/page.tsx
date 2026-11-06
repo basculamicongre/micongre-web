@@ -7,6 +7,7 @@ import { getCoVisitDossier } from "@/lib/queries/coVisitDossier";
 import { APPOINTMENT_LABELS } from "@/lib/appointmentLabels";
 import { PRIVILEGE_CODES } from "@/lib/rbac/roles";
 
+import { buildS88Rows } from "@/lib/coVisit/s88";
 const MEETING_TYPE_LABELS: Record<string, string> = { midweek: "Entre semana", weekend: "Fin de semana" };
 
 /** Abreviaturas de la columna «Tipo» (como en el S-21); la nota al pie las explica. */
@@ -21,9 +22,8 @@ export default async function CoVisitDossierPage() {
 	const db = getDb();
 	const dossier = await getCoVisitDossier(db);
 
-	const attendanceRows = [...dossier.attendance]
-		.sort((a, b) => (b.periodYear ?? 0) - (a.periodYear ?? 0) || (b.periodMonth ?? 0) - (a.periodMonth ?? 0))
-		.slice(0, 24);
+	// Últimos 12 meses (hasta 24 filas: entre semana y fin de semana de cada mes), con lo celebrado, total y promedio.
+	const attendanceRows = buildS88Rows(dossier.attendance, dossier.meetingsHeld).slice(0, 24);
 
 	return (
 		<div className="mx-auto flex max-w-3xl flex-col gap-5 print:max-w-none">
@@ -95,8 +95,12 @@ export default async function CoVisitDossierPage() {
 						<tr className="bg-gray-100">
 							<th className="border border-gray-800 px-2 py-1">Período</th>
 							<th className="border border-gray-800 px-2 py-1">Reunión</th>
+							<th className="border border-gray-800 px-2 py-1 text-right" title="Reuniones de ese tipo celebradas en el mes">Reuniones</th>
+							<th className="border border-gray-800 px-2 py-1 text-right" title="Reuniones con asistencia registrada">Registradas</th>
 							<th className="border border-gray-800 px-2 py-1 text-right">Presencial</th>
 							<th className="border border-gray-800 px-2 py-1 text-right">Zoom</th>
+							<th className="border border-gray-800 px-2 py-1 text-right">Total</th>
+							<th className="border border-gray-800 px-2 py-1 text-right" title="Total ÷ reuniones registradas">Promedio</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -106,14 +110,22 @@ export default async function CoVisitDossierPage() {
 									{r.periodYear}-{String(r.periodMonth).padStart(2, "0")}
 								</td>
 								<td className="border border-gray-800 px-2 py-1">
-									{r.meetingType ? (MEETING_TYPE_LABELS[r.meetingType] ?? r.meetingType) : "—"}
+									{MEETING_TYPE_LABELS[r.meetingType] ?? r.meetingType}
 								</td>
-								<td className="border border-gray-800 px-2 py-1 text-right">{r.totalInPerson ?? 0}</td>
-								<td className="border border-gray-800 px-2 py-1 text-right">{r.totalZoom ?? 0}</td>
+								<td className="border border-gray-800 px-2 py-1 text-right">{r.held}</td>
+								<td className="border border-gray-800 px-2 py-1 text-right">{r.recorded}</td>
+								<td className="border border-gray-800 px-2 py-1 text-right">{r.inPerson}</td>
+								<td className="border border-gray-800 px-2 py-1 text-right">{r.zoom}</td>
+								<td className="border border-gray-800 px-2 py-1 text-right font-semibold">{r.total}</td>
+								<td className="border border-gray-800 px-2 py-1 text-right font-semibold">{r.average ?? "—"}</td>
 							</tr>
 						))}
 					</tbody>
 				</table>
+				<p className="mt-1 text-xs text-gray-600">
+					Reuniones: las celebradas en el mes (sin las canceladas). Registradas: las que tienen asistencia anotada. Promedio = Total ÷
+					Registradas.
+				</p>
 			</section>
 
 			<div className="print:hidden">

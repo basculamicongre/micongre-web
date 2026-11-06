@@ -9,6 +9,8 @@ import { Modal } from "@/components/ui/Modal";
 import { InlineLoader } from "@/components/ui/Spinner";
 import { APPOINTMENT_LABELS } from "@/lib/appointmentLabels";
 import { printBulkTables } from "@/lib/publishers/bulkPdf";
+import { groupPrivileges } from "@/lib/rbac/privilegeGroups";
+import { matchesSearch } from "@/lib/textSearch";
 import { SERVICE_COMMITTEE_APPOINTMENTS } from "@/lib/rbac/roles";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
@@ -30,8 +32,8 @@ interface Loaded {
 }
 interface PrivilegeOption {
 	id: string;
+	code: string;
 	name: string;
-	category: string;
 }
 interface Result {
 	privilegesGranted: number;
@@ -45,6 +47,8 @@ interface Column {
 	key: string;
 	label: string;
 	committee?: boolean;
+	/** Grupo del privilegio (lib/rbac/privilegeGroups.ts); el encabezado lo muestra sobre su primera columna. */
+	group?: string;
 }
 
 const COMMITTEE = SERVICE_COMMITTEE_APPOINTMENTS as readonly string[];
@@ -65,6 +69,8 @@ export function BulkAssign() {
 	const [catalog, setCatalog] = useState<PrivilegeOption[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [search, setSearch] = useState("");
+	// Filtra las columnas (privilegios o nombramientos) por nombre.
+	const [columnSearch, setColumnSearch] = useState("");
 	const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
 	const [groupId, setGroupId] = useState("");
 	const [tab, setTab] = useState<"privileges" | "appointments">("privileges");
@@ -111,9 +117,8 @@ export function BulkAssign() {
 
 	const filtered = useMemo(() => {
 		if (!data) return [];
-		const q = search.trim().toLowerCase();
 		return data.people.filter((p) => {
-			if (q && !p.fullName.toLowerCase().includes(q)) return false;
+			if (!matchesSearch(p.fullName, search)) return false;
 			if (groupId && p.fieldServiceGroupId !== groupId) return false;
 			if (filter === "male") return p.gender === "male";
 			if (filter === "female") return p.gender === "female";
@@ -125,10 +130,26 @@ export function BulkAssign() {
 
 	const columns: Column[] = useMemo(
 		() =>
-			tab === "privileges"
-				? catalog.map((c) => ({ key: c.id, label: c.name }))
-				: Object.entries(APPOINTMENT_LABELS).map(([type, label]) => ({ key: type, label, committee: COMMITTEE.includes(type) })),
-		[tab, catalog],
+			(tab === "privileges"
+				? groupPrivileges(catalog).flatMap((g) => g.items.map((c) => ({ key: c.id, label: c.name, group: g.label })))
+				: Object.entries(APPOINTMENT_LABELS).map(([type, label]) => ({ key: type, label, committee: COMMITTEE.includes(type) }) as Column)
+			).filter((c) => matchesSearch(`${c.group ?? ""} ${c.label}`, columnSearch)),
+		[tab, catalog, columnSearch],
+	);
+	// Grupos consecutivos de columnas (solo privilegios) para la fila de encabezado de grupo.
+	const groupSpans = useMemo(() => {
+		const spans: { label: string; span: number }[] = [];
+		for (const c of columns) {
+			if (!c.group) return [];
+			const last = spans[spans.length - 1];
+			if (last && last.label === c.group) last.span++;
+			else spans.push({ label: c.group, span: 1 });
+		}
+		return spans;
+	}, [columns]);
+	const groupStarts = useMemo(
+		() => new Set(columns.filter((c, i) => c.group && c.group !== columns[i - 1]?.group).map((c) => c.key)),
+		[columns],
 	);
 	const edits = tab === "privileges" ? privEdits : apptEdits;
 	const setEdits = tab === "privileges" ? setPrivEdits : setApptEdits;
@@ -231,7 +252,7 @@ export function BulkAssign() {
 		if (!data) return;
 		const ok = printBulkTables({
 			people: filtered,
-			privileges: data.canPrivileges ? catalog.map((c) => ({ id: c.id, name: c.name })) : undefined,
+			privileges: data.canPrivileges ? groupPrivileges(catalog).flatMap((g) => g.items.map((c) => ({ id: c.id, name: c.name }))) : undefined,
 			appointments: data.canAppointments ? Object.entries(APPOINTMENT_LABELS).map(([type, label]) => ({ type, label })) : undefined,
 		});
 		if (!ok) setError("No se pudo preparar el PDF.");
@@ -274,13 +295,27 @@ export function BulkAssign() {
 
 			{error && <p className="text-sm text-red-600">{error}</p>}
 
-			<input
-				type="search"
-				placeholder="Buscar por nombre"
-				value={search}
-				onChange={(e) => setSearch(e.target.value)}
-				className="min-h-12 rounded-full bg-surface px-4 text-base text-ink focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
-			/>
+			<div className="grid gap-2 sm:grid-cols-2">
+				<input
+					type="search"
+					placeholder="Buscar persona"
+					aria-label="Buscar persona"
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					className="min-h-12 rounded-full bg-surface px-4 text-base text-ink focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
+				/>
+				<input
+					type="search"
+					placeholder={tab === "privileges" ? "Buscar privilegio" : "Buscar nombramiento"}
+					aria-label={tab === "privileges" ? "Buscar privilegio" : "Buscar nombramiento"}
+					value={columnSearch}
+					onChange={(e) => setColumnSearch(e.target.value)}
+					className="min-h-12 rounded-full bg-surface px-4 text-base text-ink focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
+				/>
+			</div>
+			{columnSearch.trim() !== "" && columns.length === 0 && (
+				<p className="text-sm text-ink-soft">{tab === "privileges" ? "Ningún privilegio coincide." : "Ningún nombramiento coincide."}</p>
+			)}
 			<ChipGroup>
 				{FILTERS.map((f) => (
 					<Chip key={f.key} active={filter === f.key} onClick={() => setFilter(f.key)}>
@@ -348,12 +383,38 @@ export function BulkAssign() {
 			<div className={`overflow-auto rounded-[20px] bg-surface ${maximized ? "min-h-0 flex-1" : "max-h-[70vh]"}`}>
 				<table className="border-separate border-spacing-0 text-sm">
 					<thead>
+						{/* Privilegios: una fila con el nombre de cada grupo sobre sus columnas (lib/rbac/privilegeGroups.ts). */}
+						{groupSpans.length > 0 && (
+							<tr>
+								<th
+									rowSpan={2}
+									className="sticky left-0 top-0 z-20 w-44 min-w-44 max-w-44 border-b border-r border-border bg-surface px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-soft sm:w-56 sm:min-w-56 sm:max-w-56"
+								>
+									{filtered.length} personas
+								</th>
+								{groupSpans.map((g) => (
+									<th
+										key={g.label}
+										colSpan={g.span}
+										title={g.label}
+										className="sticky top-0 z-10 h-8 max-w-0 truncate border-b border-l border-border bg-surface px-2 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-soft"
+									>
+										{g.label}
+									</th>
+								))}
+							</tr>
+						)}
 						<tr>
-							<th className="sticky left-0 top-0 z-20 w-44 min-w-44 max-w-44 border-b border-r border-border bg-surface px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-soft sm:w-56 sm:min-w-56 sm:max-w-56">
-								{filtered.length} personas
-							</th>
-							{columns.map((col) => (
-								<th key={col.key} className="sticky top-0 z-10 h-40 w-11 min-w-11 border-b border-border bg-surface p-0 align-bottom">
+							{groupSpans.length === 0 && (
+								<th className="sticky left-0 top-0 z-20 w-44 min-w-44 max-w-44 border-b border-r border-border bg-surface px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-soft sm:w-56 sm:min-w-56 sm:max-w-56">
+									{filtered.length} personas
+								</th>
+							)}
+							{columns.map((col, i) => (
+								<th
+									key={col.key}
+									className={`sticky z-10 h-40 w-11 min-w-11 border-b border-border bg-surface p-0 align-bottom ${groupSpans.length > 0 ? "top-8" : "top-0"} ${col.group && col.group !== columns[i - 1]?.group ? "border-l" : ""}`}
+								>
 									<button
 										type="button"
 										onClick={() => toggleColumn(col)}
@@ -382,7 +443,7 @@ export function BulkAssign() {
 									return (
 										<td
 											key={col.key}
-											className={`h-11 w-11 min-w-11 border-b border-border p-0 text-center ${changed ? (on ? "bg-accent/20" : "bg-red-500/15") : ""}`}
+											className={`h-11 w-11 min-w-11 border-b border-border p-0 text-center ${groupStarts.has(col.key) ? "border-l" : ""} ${changed ? (on ? "bg-accent/20" : "bg-red-500/15") : ""}`}
 										>
 											<button
 												type="button"

@@ -9,6 +9,7 @@ import { IconButton, List, ListRow } from "@/components/ui/Layout";
 import { Modal } from "@/components/ui/Modal";
 import { SelectAllControls } from "@/components/shared/SelectAllControls";
 import { APPOINTMENT_LABELS } from "@/lib/appointmentLabels";
+import { matchesSearch } from "@/lib/textSearch";
 
 interface Appointment {
 	id: string;
@@ -38,12 +39,14 @@ export function AppointmentsCard({
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [warnings, setWarnings] = useState<string[]>([]);
+	const [query, setQuery] = useState("");
 
 	const active = appointments.filter((a) => !a.endDate);
 
 	function openModal() {
 		setChecked(new Set(active.map((a) => a.appointmentType)));
 		setWarnings([]);
+		setQuery("");
 		setModalOpen(true);
 	}
 
@@ -82,16 +85,28 @@ export function AppointmentsCard({
 		}
 	}
 
+	const shownTypes = APPOINTMENT_TYPES.filter((t) => matchesSearch(APPOINTMENT_LABELS[t], query));
+
 	const trigger = <IconButton label="Gestionar nombramientos" icon={UserCog} onClick={openModal} />;
 
 	const modal = (
 		<Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Gestionar nombramientos">
+<input
+				type="search"
+				placeholder="Buscar nombramiento"
+				value={query}
+				onChange={(e) => setQuery(e.target.value)}
+				aria-label="Buscar nombramiento"
+				className="mb-2 min-h-11 w-full rounded-full border border-border bg-surface px-4 text-base text-ink focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
+			/>
 			<SelectAllControls
-				onSelectAll={() => setChecked(new Set(APPOINTMENT_TYPES))}
-				onClearAll={() => setChecked(new Set())}
+				// Con una búsqueda, solo afectan a los nombramientos que se ven.
+				onSelectAll={() => setChecked((prev) => new Set([...prev, ...shownTypes]))}
+				onClearAll={() => setChecked((prev) => new Set([...prev].filter((t) => !shownTypes.includes(t))))}
 			/>
 			<div className="flex max-h-[60vh] flex-col overflow-y-auto">
-				{APPOINTMENT_TYPES.map((type) => (
+				{shownTypes.length === 0 && <p className="px-2 py-4 text-sm text-ink-soft">Ningún nombramiento coincide.</p>}
+				{shownTypes.map((type) => (
 					<label key={type} className="flex min-h-11 items-center gap-3 rounded-xl px-2 text-sm text-ink hover:bg-surface-alt">
 						<input type="checkbox" className="h-5 w-5 accent-accent" checked={checked.has(type)} onChange={() => toggle(type)} />
 						{APPOINTMENT_LABELS[type]}

@@ -10,6 +10,8 @@ import { Modal } from "@/components/ui/Modal";
 import { SelectAllControls } from "@/components/shared/SelectAllControls";
 import { RecommendationsDecisionPanel } from "@/components/coVisit/RecommendationsDecisionPanel";
 import { formatShortDate } from "@/lib/dateFormat";
+import { SongSelect, useSongTitles } from "@/components/shared/SongSelect";
+import { songLabel } from "@/lib/songs/label";
 
 const OFFICE_LABELS: Record<string, string> = { ELDER: "Anciano", MINISTERIAL_SERVANT: "Siervo ministerial" };
 
@@ -70,9 +72,9 @@ const EMPTY_VISIT_FORM = {
 
 /** Los 3 discursos del superintendente esa semana (título y canción). */
 const CO_TALKS = [
-	{ key: "midweekTalk", label: "Discurso de servicio (entre semana)" },
-	{ key: "publicTalk", label: "Discurso público (fin de semana)" },
-	{ key: "finalTalk", label: "Discurso final (fin de semana)" },
+	{ key: "midweekTalk", label: "Discurso de servicio (entre semana)", songLabel: "Canción final de la reunión de entre semana" },
+	{ key: "publicTalk", label: "Discurso público (fin de semana)", songLabel: "Canción antes del discurso público" },
+	{ key: "finalTalk", label: "Discurso final (fin de semana)", songLabel: "Canción final de la reunión de fin de semana" },
 ] as const;
 
 const EMPTY_RECOMMENDATION_FORM = {
@@ -87,6 +89,7 @@ const EMPTY_RECOMMENDATION_FORM = {
 };
 
 export function CoVisitHub() {
+	const songTitles = useSongTitles();
 	const [visits, setVisits] = useState<Visit[]>([]);
 	const [publishers, setPublishers] = useState<PublisherOption[]>([]);
 	const [tab, setTab] = useState<"agenda" | "pioneers" | "s62">("agenda");
@@ -311,7 +314,7 @@ export function CoVisitHub() {
 												{CO_TALKS.filter((t) => selectedVisit[`${t.key}Title`]).map((t) => (
 													<li key={t.key}>
 														<span className="text-ink-soft">{t.label}:</span> {selectedVisit[`${t.key}Title`]}
-														{selectedVisit[`${t.key}Song`] ? ` · Canción ${selectedVisit[`${t.key}Song`]}` : ""}
+														{selectedVisit[`${t.key}Song`] ? ` · ${songLabel(selectedVisit[`${t.key}Song`], songTitles) ?? ""}` : ""}
 													</li>
 												))}
 											</ul>
@@ -456,17 +459,17 @@ export function CoVisitHub() {
 					</label>
 					<div className="text-sm font-medium text-ink">Discursos del superintendente</div>
 					{CO_TALKS.map((t) => (
-						<div key={t.key} className="grid grid-cols-[1fr_88px] gap-3">
+						<div key={t.key} className="flex flex-col gap-2 rounded-2xl border border-border p-3">
 							<Input
 								label={t.label}
 								value={visitForm[`${t.key}Title`]}
 								onChange={(e) => setVisitForm((f) => ({ ...f, [`${t.key}Title`]: e.target.value }))}
 							/>
-							<Input
-								label="Canción"
-								inputMode="numeric"
-								value={visitForm[`${t.key}Song`]}
-								onChange={(e) => setVisitForm((f) => ({ ...f, [`${t.key}Song`]: e.target.value.replace(/\D/g, "") }))}
+							{/* El mismo selector de canciones de las reuniones (catálogo «Cantemos con gozo»). */}
+							<SongSelect
+								label={t.songLabel}
+								value={visitForm[`${t.key}Song`] ? Number(visitForm[`${t.key}Song`]) : null}
+								onChange={(n) => setVisitForm((f) => ({ ...f, [`${t.key}Song`]: n ? String(n) : "" }))}
 							/>
 						</div>
 					))}

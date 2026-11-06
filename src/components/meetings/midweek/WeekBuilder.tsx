@@ -549,7 +549,14 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 			})}
 
 			<Card>
-				<SongSelect label="Canción" value={meeting.closingSongNumber} onChange={(n) => patchMeeting({ closingSongNumber: n })} />
+				{ctx.coVisit?.midweekTalk.song ? (
+					// Semana de la visita: la canción final es la que eligió el superintendente (se cambia en «Visita del SC»).
+					<p className="px-1 py-2 text-sm text-ink">
+						Canción {ctx.coVisit.midweekTalk.song} <span className="text-ink-soft">· del superintendente de circuito</span>
+					</p>
+				) : (
+					<SongSelect label="Canción" value={meeting.closingSongNumber} onChange={(n) => patchMeeting({ closingSongNumber: n })} />
+				)}
 			</Card>
 
 			<Modal open={customModalOpen} onClose={() => setCustomModalOpen(false)} title="Asignación personalizada">

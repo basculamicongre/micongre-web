@@ -301,7 +301,7 @@ function midweekWeek(m: MidweekData, y0: number, startMin: number | null, titles
 			y,
 			{
 				time: clock(t),
-				title: songLabel(m.closingSong, titles) ?? "Canción",
+				title: songLabel(m.coVisit?.midweekTalk.song ?? m.closingSong, titles) ?? "Canción",
 				main: `Oración: ${prayer?.main ?? ""}`.trim(),
 				bold: true,
 			},

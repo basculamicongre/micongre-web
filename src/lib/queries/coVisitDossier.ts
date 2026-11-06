@@ -1,6 +1,10 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull } from "drizzle-orm";
 import type { Database } from "@/db/client";
-import { fieldServiceGroups, monthlyAttendanceSummary, serviceReports, theocraticAppointments, users } from "@/db/schema";
+import { fieldServiceGroups, midweekMeetings, monthlyAttendanceSummary, serviceReports, theocraticAppointments, users, weekendMeetings } from "@/db/schema";
+import { readMeetingSchedules } from "@/lib/assignments/stats";
+import { effectiveMeetingDate } from "@/lib/attendance/summary";
+import { isMeetingCancelled } from "@/lib/cleaning/meetings";
+import type { MeetingsHeld } from "@/lib/coVisit/s88";
 import { notHiddenAdmin } from "@/lib/rbac/visibility";
 import { SERVICE_YEAR_MONTHS, calendarYearForServiceMonth, getCurrentServiceYear } from "@/lib/serviceYear";
 
@@ -30,6 +34,8 @@ export interface CoVisitDossier {
 		totalInPerson: number | null;
 		totalZoom: number | null;
 	}[];
+	/** Reuniones celebradas por mes y tipo (sin las canceladas), por la fecha real en que se celebran. */
+	meetingsHeld: MeetingsHeld[];
 }
 
 // Paquete S-61 (sin territorios ni cuentas — ver plan, las cuentas se
@@ -129,11 +135,42 @@ export async function getCoVisitDossier(db: Database): Promise<CoVisitDossier> {
 		.sort((a, b) => (a.groupId === null ? 1 : b.groupId === null ? -1 : byName(a.groupName, b.groupName)))
 		.map((g) => ({ ...g, members: [...g.members].sort((a, b) => byName(a.fullName, b.fullName)) }));
 
+	const meetingsHeld = await countMeetingsHeld(db);
+
 	return {
 		serviceYear,
 		pioneers: [...pioneers].sort((a, b) => byName(a.fullName, b.fullName)),
 		activeByGroup,
 		inactivePublishers: [...inactivePublishers].sort((a, b) => byName(a.fullName, b.fullName)),
 		attendance: attendanceRows,
+		meetingsHeld,
 	};
+}
+
+/** Reuniones de entre semana y de fin de semana celebradas en los últimos 25 meses, por mes y tipo (sin las canceladas). */
+async function countMeetingsHeld(db: Database): Promise<MeetingsHeld[]> {
+	const from = new Date();
+	from.setUTCMonth(from.getUTCMonth() - 25);
+	const since = from.toISOString().slice(0, 10);
+	const today = new Date(Date.now() - 6 * 3_600_000).toISOString().slice(0, 10);
+	const [mid, wk, schedules] = await Promise.all([
+		db.select({ date: midweekMeetings.meetingDate, status: midweekMeetings.status }).from(midweekMeetings).where(gte(midweekMeetings.meetingDate, since)),
+		db.select({ date: weekendMeetings.meetingDate, status: weekendMeetings.status }).from(weekendMeetings).where(gte(weekendMeetings.meetingDate, since)),
+		readMeetingSchedules(db),
+	]);
+	const counts = new Map<string, MeetingsHeld>();
+	const add = (stored: string, status: string, type: "midweek" | "weekend") => {
+		if (isMeetingCancelled(status)) return;
+		const real = effectiveMeetingDate(stored, type, schedules);
+		if (real > today) return; // solo las ya celebradas
+		const y = Number(real.slice(0, 4));
+		const m = Number(real.slice(5, 7));
+		const k = `${y}-${m}-${type}`;
+		const row = counts.get(k) ?? { periodYear: y, periodMonth: m, meetingType: type, count: 0 };
+		row.count++;
+		counts.set(k, row);
+	};
+	mid.forEach((r) => add(r.date, r.status, "midweek"));
+	wk.forEach((r) => add(r.date, r.status, "weekend"));
+	return [...counts.values()];
 }
