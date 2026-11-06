@@ -9,6 +9,9 @@ import { PRIVILEGE_CODES } from "@/lib/rbac/roles";
 
 const MEETING_TYPE_LABELS: Record<string, string> = { midweek: "Entre semana", weekend: "Fin de semana" };
 
+/** Abreviaturas de la columna «Tipo» (como en el S-21); la nota al pie las explica. */
+const PIONEER_SHORT: Record<string, string> = { regular_pioneer: "PR", special_pioneer: "PE", missionary: "M" };
+
 export default async function CoVisitDossierPage() {
 	const session = await getSession();
 	if (!session || (session.role !== "admin" && !session.privilegeCodes.includes(PRIVILEGE_CODES.CO_VISIT_ACCESS))) {
@@ -28,7 +31,7 @@ export default async function CoVisitDossierPage() {
 				<PageHeader title="Paquete S-61" subtitle="Visita del SC" />
 			</div>
 
-			<section className="border border-gray-800 bg-white p-5 text-sm print:border-black">
+			<section className="border border-gray-800 bg-white p-5 text-sm text-gray-900 print:border-black">
 				<h2 className="text-base font-bold uppercase tracking-wide">
 					Concentrado S-21 — Año de servicio {dossier.serviceYear}–{dossier.serviceYear + 1}
 				</h2>
@@ -41,22 +44,32 @@ export default async function CoVisitDossierPage() {
 						<thead>
 							<tr className="bg-gray-100">
 								<th className="border border-gray-800 px-2 py-1">Nombre</th>
-								<th className="border border-gray-800 px-2 py-1">Tipo</th>
+								<th className="border border-gray-800 px-2 py-1 text-center">Tipo</th>
 								<th className="border border-gray-800 px-2 py-1 text-right">Horas (año de servicio)</th>
-								<th className="border border-gray-800 px-2 py-1">Horas acreditadas (notas)</th>
+								<th className="border border-gray-800 px-2 py-1 text-right">Horas acreditadas</th>
 							</tr>
 						</thead>
 						<tbody>
 							{dossier.pioneers.map((p) => (
 								<tr key={p.id}>
 									<td className="border border-gray-800 px-2 py-1">{p.fullName}</td>
-									<td className="border border-gray-800 px-2 py-1">{APPOINTMENT_LABELS[p.appointmentType] ?? p.appointmentType}</td>
+									<td className="border border-gray-800 px-2 py-1 text-center" title={APPOINTMENT_LABELS[p.appointmentType] ?? p.appointmentType}>
+										{PIONEER_SHORT[p.appointmentType] ?? APPOINTMENT_LABELS[p.appointmentType] ?? p.appointmentType}
+									</td>
 									<td className="border border-gray-800 px-2 py-1 text-right">{p.totalHours}</td>
-									<td className="border border-gray-800 px-2 py-1">{p.creditHoursNotes.join("; ") || "—"}</td>
+									{/* Horas de proyecto de sus informes; debajo, las notas de crédito importadas (si hay). */}
+									<td className="border border-gray-800 px-2 py-1 text-right">
+										{p.creditHours > 0 ? p.creditHours : "—"}
+										{p.creditHoursNotes.length > 0 && <span className="block text-xs text-gray-500">{p.creditHoursNotes.join("; ")}</span>}
+									</td>
 								</tr>
 							))}
 						</tbody>
 					</table>
+				)}
+
+				{dossier.pioneers.length > 0 && (
+					<p className="mt-1 text-xs text-gray-600">PR: precursor regular · PE: precursor especial · M: misionero que sirve en el campo.</p>
 				)}
 
 				<h3 className="mt-4 font-semibold">Publicadores activos por grupo de servicio</h3>
@@ -75,7 +88,7 @@ export default async function CoVisitDossierPage() {
 				)}
 			</section>
 
-			<section className="border border-gray-800 bg-white p-5 text-sm print:border-black">
+			<section className="border border-gray-800 bg-white p-5 text-sm text-gray-900 print:border-black">
 				<h2 className="text-base font-bold uppercase tracking-wide">Consolidado S-88 — Últimos 12 meses</h2>
 				<table className="mt-2 w-full border-collapse border border-gray-800 text-left">
 					<thead>

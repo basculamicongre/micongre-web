@@ -4,6 +4,9 @@ import { fieldServiceGroups, monthlyAttendanceSummary, serviceReports, theocrati
 import { notHiddenAdmin } from "@/lib/rbac/visibility";
 import { SERVICE_YEAR_MONTHS, calendarYearForServiceMonth, getCurrentServiceYear } from "@/lib/serviceYear";
 
+/** Orden alfabético en español, con números en orden natural. */
+const byName = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true, sensitivity: "base" });
+
 const PIONEER_APPOINTMENT_TYPES = ["regular_pioneer", "special_pioneer", "missionary"] as const;
 
 export interface CoVisitDossier {
@@ -13,6 +16,8 @@ export interface CoVisitDossier {
 		fullName: string;
 		appointmentType: string;
 		totalHours: number;
+		/** Horas acreditadas: las de proyecto (construcción, etc.) que cada publicador manda en sus informes del año de servicio. */
+		creditHours: number;
 		creditHoursNotes: string[];
 	}[];
 	activeByGroup: { groupId: string | null; groupName: string; members: { id: string; fullName: string }[] }[];
@@ -75,6 +80,7 @@ export async function getCoVisitDossier(db: Database): Promise<CoVisitDossier> {
 				.select({
 					userId: serviceReports.userId,
 					hours: serviceReports.hours,
+					projectHours: serviceReports.projectHours,
 					creditHoursNote: serviceReports.creditHoursNote,
 					periodYear: serviceReports.periodYear,
 					periodMonth: serviceReports.periodMonth,
@@ -97,6 +103,7 @@ export async function getCoVisitDossier(db: Database): Promise<CoVisitDossier> {
 			fullName: appt.fullName,
 			appointmentType: appt.appointmentType,
 			totalHours: reportsForUser.reduce((sum, r) => sum + (r.hours ?? 0), 0),
+			creditHours: reportsForUser.reduce((sum, r) => sum + (r.projectHours ?? 0), 0),
 			creditHoursNotes: reportsForUser.map((r) => r.creditHoursNote).filter((n): n is string => !!n),
 		};
 	});
@@ -116,13 +123,17 @@ export async function getCoVisitDossier(db: Database): Promise<CoVisitDossier> {
 			groupColor: null,
 			members: allActivePublishers.filter((p) => !p.fieldServiceGroupId).map(({ id, fullName }) => ({ id, fullName })),
 		},
-	].filter((g) => g.members.length > 0);
+	]
+		.filter((g) => g.members.length > 0)
+		// Grupos por nombre (natural: «Grupo 2» antes que «Grupo 10»; «Sin grupo» al final) y sus integrantes en orden alfabético.
+		.sort((a, b) => (a.groupId === null ? 1 : b.groupId === null ? -1 : byName(a.groupName, b.groupName)))
+		.map((g) => ({ ...g, members: [...g.members].sort((a, b) => byName(a.fullName, b.fullName)) }));
 
 	return {
 		serviceYear,
-		pioneers,
+		pioneers: [...pioneers].sort((a, b) => byName(a.fullName, b.fullName)),
 		activeByGroup,
-		inactivePublishers,
+		inactivePublishers: [...inactivePublishers].sort((a, b) => byName(a.fullName, b.fullName)),
 		attendance: attendanceRows,
 	};
 }
