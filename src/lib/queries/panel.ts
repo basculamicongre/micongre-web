@@ -1,4 +1,4 @@
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import {
 	cleaningTaskAssignees,
@@ -24,7 +24,7 @@ import {
 	weekendMeetings,
 } from "@/db/schema";
 import { readMeetingSchedules } from "@/lib/assignments/stats";
-import { effectiveMeetingDate, type MeetingSchedules } from "@/lib/attendance/summary";
+import { effectiveMeetingDate, effectiveMeetingTime, type MeetingSchedules } from "@/lib/attendance/summary";
 import { CLEANING_KIND_LABEL, CLEANING_MEETING_LABEL, OWN_CONGREGATION_LABEL } from "@/lib/cleaning/labels";
 import { chunked, getCleaningMeetings, isMeetingCancelled } from "@/lib/cleaning/meetings";
 import { loadAssignees } from "@/lib/cleaning/tasks";
@@ -70,6 +70,10 @@ export interface PanelAssignment {
 	territoryIds?: string[];
 	when?: string;
 	nextSession?: string;
+	/** Predicación: territorio con mapa que la persona puede abrir (botón de mapa en Mi Panel). */
+	mapTerritoryId?: string;
+	/** Solo del servidor: territorios dibujados de la salida, antes de filtrar por lo que la persona puede ver. */
+	mapCandidates?: { id: string; kind: string }[];
 	/** Próximas: hora local (Nicaragua, «AAAA-MM-DDTHH:MM») en que termina; después la app y el widget la dejan de mostrar. */
 	until?: string;
 }
@@ -84,8 +88,8 @@ function nicaraguaDate(instant: Date): string {
 }
 
 /** Hora (HH:MM) de la reunión según Congregación → horarios; undefined si no está configurada. */
-function meetingTime(schedules: MeetingSchedules | null, type: "midweek" | "weekend"): string | undefined {
-	const t = type === "midweek" ? schedules?.midweek?.time : schedules?.weekend?.time;
+function meetingTime(schedules: MeetingSchedules | null, type: "midweek" | "weekend", date?: string): string | undefined {
+	const t = date ? effectiveMeetingTime(date, type, schedules) : type === "midweek" ? schedules?.midweek?.time : schedules?.weekend?.time;
 	return t && /^\d{1,2}:\d{2}/.test(t) ? t.slice(0, 5).padStart(5, "0") : undefined;
 }
 
@@ -292,7 +296,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 					date: realDate(meeting.date, task.meetingType),
 					meetingType: "cleaning",
 					label: `${kindLabel} — ${who} (${CLEANING_MEETING_LABEL[task.meetingType]})${together}`,
-					time: meetingTime(schedules, task.meetingType),
+					time: meetingTime(schedules, task.meetingType, realDate(meeting.date, task.meetingType)),
 				});
 			} else if (task.kind === "profunda" && task.weekStart) {
 				assignments.push({
@@ -329,6 +333,8 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 					number: territories.number,
 					name: territories.name,
 					meetingPlace: territories.meetingPlace,
+					kind: territories.kind,
+					hasMap: sql<number>`${territories.mapData} is not null`,
 				})
 				.from(preachingSessionTerritories)
 				.innerJoin(territories, eq(territories.id, preachingSessionTerritories.territoryId))
@@ -347,6 +353,8 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 				time: s.sessionTime,
 				territoryIds: list.map((t) => t.territoryId),
 				when: `${formatShortDayMonth(s.sessionDate)} ${time12(s.sessionTime)}`,
+				// Para el botón de mapa: los territorios dibujados (la ruta de Mi Panel deja solo los que la persona puede ver).
+				mapCandidates: list.filter((t) => Number(t.hasMap) === 1).map((t) => ({ id: t.territoryId, kind: t.kind })),
 			});
 		}
 	}
@@ -470,8 +478,9 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 	// Las de reunión (partes, roles, acomodadores) llevan la hora de la reunión: así pasan al historial cuando la reunión termina.
 	for (const a of assignments) {
 		if (a.time) continue;
-		if (a.bucket === "meeting:midweek") a.time = meetingTime(schedules, "midweek");
-		else if (a.bucket === "meeting:weekend") a.time = meetingTime(schedules, "weekend");
+		// La hora de esa semana (un evento puede haber movido la reunión); la fecha ya es la real, de la misma semana.
+		if (a.bucket === "meeting:midweek") a.time = meetingTime(schedules, "midweek", a.date);
+		else if (a.bucket === "meeting:weekend") a.time = meetingTime(schedules, "weekend", a.date);
 	}
 	return assignments.sort((a, b) => a.date.localeCompare(b.date));
 }

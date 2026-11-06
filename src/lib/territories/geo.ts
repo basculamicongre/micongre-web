@@ -17,6 +17,12 @@ export interface TerritoryFeatureProperties {
 	text?: string;
 	/** Solo puntos: emoji que se muestra en lugar del punto (sin valor = punto). */
 	emoji?: string;
+	/** Solo puntos: etiqueta que se muestra pegada debajo del punto, a cualquier zoom. */
+	label?: string;
+	/** Solo puntos: es el punto de salida a la predicación (se marca con un pulso). */
+	departure?: boolean;
+	/** Solo textos: tamaño de la letra (sin valor = normal). */
+	size?: TextSize;
 	/** Solo en el mapa de todos los territorios (no se guarda): color del territorio; en un texto, rótulo con ese fondo. */
 	color?: string;
 }
@@ -38,6 +44,11 @@ export interface TerritoryMapData {
 
 export type TerritoryKind = "general" | "public_preaching";
 
+export const TEXT_SIZES = ["normal", "medium", "large"] as const;
+export type TextSize = (typeof TEXT_SIZES)[number];
+/** Tamaño de letra (px) de cada tamaño de texto. */
+export const TEXT_SIZE_PX: Record<TextSize, number> = { normal: 14, medium: 19, large: 26 };
+
 export const TERRITORY_KIND_LABEL: Record<TerritoryKind, string> = {
 	general: "General",
 	public_preaching: "Predicación pública",
@@ -45,16 +56,21 @@ export const TERRITORY_KIND_LABEL: Record<TerritoryKind, string> = {
 
 export type DrawTool = "polygon" | "line" | "point" | "text";
 
-/** Qué se puede dibujar en el mapa de cada tipo de territorio. */
+/** Qué se puede dibujar en el mapa de cada tipo de territorio: los dos tipos admiten lo mismo. */
 export const ALLOWED_TOOLS: Record<TerritoryKind, DrawTool[]> = {
 	general: ["polygon", "line", "point", "text"],
-	public_preaching: ["point", "text"],
+	public_preaching: ["polygon", "line", "point", "text"],
 };
 
-/** Los elementos del dibujo que el tipo de territorio no admite. */
+/** Los elementos del dibujo que el tipo de territorio no admite (hoy ninguno: los dos tipos admiten todo). */
 export function hasDisallowedFeatures(data: TerritoryMapData, kind: TerritoryKind): boolean {
-	if (kind === "general") return false;
-	return data.features.some((f) => f.geometry.type !== "Point");
+	return data.features.some((f) => !ALLOWED_TOOLS[kind].includes(f.geometry.type === "Point" ? (f.properties.kind === "text" ? "text" : "point") : f.geometry.type === "Polygon" ? "polygon" : "line"));
+}
+
+/** El punto de salida a la predicación del dibujo (lng, lat), si hay uno marcado. */
+export function departurePoint(data: TerritoryMapData | null | undefined): LngLat | null {
+	const f = data?.features.find((x) => x.geometry.type === "Point" && x.properties.departure && x.properties.kind !== "text");
+	return f && f.geometry.type === "Point" ? f.geometry.coordinates : null;
 }
 
 export const MAX_FEATURES = 500;

@@ -1,4 +1,5 @@
 import { and, eq, gte, isNotNull, lte, ne } from "drizzle-orm";
+import { applyUpcomingEvents, notifyDueEvents } from "@/lib/events/service";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { Database } from "@/db/client";
 import { syncOwnCongregation } from "@/lib/jw/ownCongregation";
@@ -32,6 +33,8 @@ export interface DailyResult {
 	congregations: { checked: number; updated: number; failed: { name: string; reason: string }[] };
 	/** Recordatorio del informe del mes anterior (null si falló). */
 	reports: ReportReminderResult | null;
+	/** Eventos aplicados a sus reuniones y avisos enviados (null si falló). */
+	events: { applied: number; notified: number } | null;
 }
 
 /** Lunes de cada semana cuyo lunes cae en el mes (AAAA-MM) — igual que `weekStartsOfMonth`, que cuenta cada semana en el mes de su lunes. */
@@ -185,7 +188,7 @@ async function syncCongregations(db: Database, out: DailyResult["congregations"]
 /** Job diario: (1) deja armados los programas del mes en curso y del siguiente (entre semana y fin de semana) y
  * con sus puestos de tareas operativas según la plantilla, y (2) actualiza desde jw.org el día y la hora de las congregaciones de arreglos que tienen enlace. Cada paso es independiente:
  * si uno falla, el otro corre igual. `only` limita a un paso (pruebas). */
-export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports" | "preaching"): Promise<DailyResult> {
+export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports" | "preaching" | "events"): Promise<DailyResult> {
 	const result: DailyResult = {
 		midweek: { created: 0, imported: 0, skeletons: 0, filled: 0, errors: [] },
 		weekend: { created: 0 },
@@ -193,6 +196,7 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 		preaching: null,
 		congregations: { checked: 0, updated: 0, failed: [] },
 		reports: null,
+		events: null,
 	};
 
 	if (!only || only === "programs") {
@@ -238,6 +242,16 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 			await purgeOldRefreshTokens(db);
 		} catch (error) {
 			console.error("daily_purge_refresh_tokens_failed", error);
+		}
+	}
+	// Eventos: se aplican a las reuniones creadas después del evento (cancelar = sin asignaciones) y se avisa a la congregación
+	// los días antes que diga cada uno.
+	if (!only || only === "programs" || only === "events") {
+		try {
+			const today = nicaraguaToday(now);
+			result.events = { applied: await applyUpcomingEvents(db, today), notified: await notifyDueEvents(db, today) };
+		} catch (error) {
+			console.error("daily_events_failed", error);
 		}
 	}
 	// Predicación recurrente: el día de cada salida se crea la de la semana siguiente (mientras siga el mismo capitán).

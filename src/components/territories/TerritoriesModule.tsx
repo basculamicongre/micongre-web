@@ -240,7 +240,7 @@ function TerritoryFormModal({
 		const body = (await response.json().catch(() => null)) as { error?: string } | null;
 		setError(
 			body?.error === "map_not_allowed"
-				? "Ese tipo solo admite puntos y textos: quita primero las líneas y polígonos del mapa."
+				? "El mapa tiene elementos que ese tipo no admite."
 				: (ERROR_TEXT[body?.error ?? ""] ?? "No se pudo guardar."),
 		);
 	}

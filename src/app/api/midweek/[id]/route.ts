@@ -8,6 +8,7 @@ import { assertCanAccessMidweekModule } from "@/lib/rbac/guards";
 import { PRIVILEGE_CODES } from "@/lib/rbac/roles";
 import { updateMidweekMeetingSchema } from "@/lib/validation/midweek";
 import { songTitleMap } from "@/lib/songs/catalog";
+import { meetingContext } from "@/lib/events/service";
 
 async function loadMeetingWithAssignments(db: ReturnType<typeof getDb>, id: string) {
 	const [meeting] = await db.select().from(midweekMeetings).where(eq(midweekMeetings.id, id)).limit(1);
@@ -71,6 +72,8 @@ async function loadMeetingWithAssignments(db: ReturnType<typeof getDb>, id: stri
 		},
 		assignments,
 		skipOpeningPrayer: !!cong?.skip,
+		// Evento que cancela o mueve esta reunión, visita del superintendente de esa semana y la fecha y hora reales.
+		...(await meetingContext(db, meeting.meetingDate, "midweek")),
 	};
 }
 

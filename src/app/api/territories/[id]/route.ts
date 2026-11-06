@@ -51,7 +51,7 @@ export async function PATCH(request: Request, { params }: Params) {
 			.limit(1);
 		if (!existing) throw new TerritoryFailure("territory_not_found");
 
-		// Un territorio de predicación pública solo admite puntos y textos: se
+		// Valida que el dibujo solo tenga lo que admite el tipo (hoy los dos admiten todo): se
 		// revisa el dibujo nuevo, o el ya guardado si solo cambia el tipo.
 		const kind = parsed.data.kind ?? existing.kind;
 		const finalMap = parsed.data.mapData !== undefined ? parsed.data.mapData : parseMapData(existing.mapData);

@@ -117,6 +117,10 @@ export function MyAssignments({
 										<MapIcon size={20} />
 									</a>
 								)}
+								{/* Salida de predicación con un territorio dibujado que la persona puede ver. */}
+								{!territory && item.mapTerritoryId && (
+									<IconButton label="Ver el mapa del territorio" icon={MapIcon} onClick={() => setMapFor(item.mapTerritoryId!)} />
+								)}
 								{territory && pending && (
 									<>
 										<IconButton label="Ver el mapa" icon={MapIcon} onClick={() => setMapFor(territory.territoryId)} />

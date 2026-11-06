@@ -71,7 +71,7 @@ export function TerritoryMapEditor({
 			const body = (await response.json().catch(() => null)) as { error?: string } | null;
 			setError(
 				body?.error === "map_not_allowed"
-					? "Este tipo de territorio solo admite puntos y textos."
+					? "El mapa tiene elementos que este tipo de territorio no admite."
 					: "No se pudo guardar el mapa. Si dibujaste muchísimo, simplifica un poco e intenta de nuevo.",
 			);
 			return;

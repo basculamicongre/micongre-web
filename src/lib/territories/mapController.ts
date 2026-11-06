@@ -18,6 +18,8 @@ import {
 	boundsOf,
 	DEFAULT_POINT_EMOJI,
 	MAX_FEATURES,
+	TEXT_SIZE_PX,
+	type TextSize,
 	type DrawTool,
 	type LngLat,
 	type TerritoryFeature,
@@ -33,7 +35,7 @@ export type ShapeType = "polygon" | "line" | "point" | "text";
 
 export interface EditorState {
 	tool: EditorTool;
-	selected: { id: string; type: ShapeType; text?: string; emoji?: string } | null;
+	selected: { id: string; type: ShapeType; text?: string; emoji?: string; label?: string; departure?: boolean; size?: TextSize } | null;
 	/** Vértices ya puestos del polígono/línea que se está dibujando. */
 	drafting: number;
 	canUndo: boolean;
@@ -71,6 +73,19 @@ const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: 
 
 const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
 const toLngLat = (e: { lngLat: { lng: number; lat: number } }): LngLat => [round6(e.lngLat.lng), round6(e.lngLat.lat)];
+
+/** Pulso del punto de salida (una sola hoja de estilos para todos los mapas). */
+function ensurePulseStyle() {
+	if (typeof document === "undefined" || document.getElementById("td-pulse-style")) return;
+	const style = document.createElement("style");
+	style.id = "td-pulse-style";
+	style.textContent = `
+.td-departure-pulse { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 9999px;
+  background: rgba(22, 163, 74, .35); border: 2px solid rgba(22, 163, 74, .8); animation: td-pulse 1.8s ease-out infinite; pointer-events: none; z-index: 0; }
+@keyframes td-pulse { 0% { transform: scale(.55); opacity: .9; } 80%, 100% { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .td-departure-pulse { animation: none; opacity: .6; } }`;
+	document.head.appendChild(style);
+}
 
 function shapeTypeOf(f: TerritoryFeature): ShapeType {
 	if (f.geometry.type === "Polygon") return "polygon";
@@ -293,6 +308,38 @@ export class TerritoryMapController {
 		}
 	}
 
+	/** Etiqueta del punto seleccionado (vacía = sin etiqueta); va pegada debajo del punto a cualquier zoom. */
+	setPointLabel(value: string) {
+		const f = this.selected();
+		if (!f || shapeTypeOf(f) !== "point") return;
+		const label = value.trim().slice(0, 60);
+		if ((f.properties.label ?? "") === label) return;
+		this.pushHistory();
+		if (label) f.properties.label = label;
+		else delete f.properties.label;
+		this.changed();
+	}
+
+	/** Marca (o desmarca) el punto seleccionado como salida a la predicación; solo puede haber una por territorio. */
+	setDeparture(on: boolean) {
+		const f = this.selected();
+		if (!f || shapeTypeOf(f) !== "point") return;
+		this.pushHistory();
+		for (const other of this.features) delete other.properties.departure;
+		if (on) f.properties.departure = true;
+		this.changed();
+	}
+
+	/** Tamaño del texto seleccionado. */
+	setTextSize(size: TextSize) {
+		const f = this.selected();
+		if (!f || shapeTypeOf(f) !== "text") return;
+		this.pushHistory();
+		if (size === "normal") delete f.properties.size;
+		else f.properties.size = size;
+		this.changed();
+	}
+
 	finishDraft() {
 		const type = this.tool === "polygon" ? "polygon" : this.tool === "line" ? "line" : null;
 		if (!type) return;
@@ -383,6 +430,79 @@ export class TerritoryMapController {
 		this.changed();
 	}
 
+	/**
+	 * Imagen PNG de lo que se ve en el mapa con la simbología a la izquierda (color, número y nombre de cada territorio) y los rótulos
+	 * con el número encima de cada territorio (son marcadores HTML: se dibujan aparte porque no están en el lienzo del mapa).
+	 */
+	async exportPng(title: string, legend: { number: string; name: string | null; color: string }[]): Promise<Blob> {
+		const canvas = this.map.getCanvas();
+		// El lienzo de WebGL solo se puede leer dentro del evento de dibujo.
+		const mapImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+			this.map.once("render", () => {
+				try {
+					const img = new Image();
+					img.onload = () => resolve(img);
+					img.onerror = reject;
+					img.src = canvas.toDataURL("image/png");
+				} catch (error) {
+					reject(error);
+				}
+			});
+			this.map.triggerRepaint();
+		});
+		const ratio = canvas.width / canvas.clientWidth || 1;
+		const legendW = Math.round(260 * ratio);
+		const rowH = 28 * ratio;
+		const headerH = 56 * ratio;
+		const out = document.createElement("canvas");
+		out.width = legendW + canvas.width;
+		out.height = Math.max(canvas.height, Math.ceil(headerH + legend.length * rowH + 24 * ratio));
+		const ctx = out.getContext("2d");
+		if (!ctx) throw new Error("no_canvas");
+		ctx.fillStyle = "#ffffff";
+		ctx.fillRect(0, 0, out.width, out.height);
+		ctx.drawImage(mapImage, legendW, 0);
+
+		// Simbología.
+		ctx.fillStyle = "#111827";
+		ctx.font = `700 ${16 * ratio}px system-ui, sans-serif`;
+		ctx.fillText(title, 16 * ratio, 30 * ratio);
+		ctx.font = `${13 * ratio}px system-ui, sans-serif`;
+		legend.forEach((row, i) => {
+			const y = headerH + i * rowH;
+			ctx.fillStyle = row.color;
+			ctx.fillRect(16 * ratio, y - 13 * ratio, 16 * ratio, 16 * ratio);
+			ctx.fillStyle = "#111827";
+			const text = row.name ? `${row.number} · ${row.name}` : row.number;
+			ctx.fillText(text.length > 30 ? `${text.slice(0, 29)}…` : text, 40 * ratio, y);
+		});
+		ctx.strokeStyle = "#e5e7eb";
+		ctx.beginPath();
+		ctx.moveTo(legendW - 0.5, 0);
+		ctx.lineTo(legendW - 0.5, out.height);
+		ctx.stroke();
+
+		// Rótulos con el número de cada territorio.
+		ctx.font = `700 ${13 * ratio}px system-ui, sans-serif`;
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		for (const f of this.features) {
+			if (f.geometry.type !== "Point" || f.properties.kind !== "text" || !f.properties.color) continue;
+			const p = this.map.project(f.geometry.coordinates);
+			const x = legendW + p.x * ratio;
+			const y = p.y * ratio;
+			const w = ctx.measureText(f.properties.text ?? "").width + 16 * ratio;
+			const h = 20 * ratio;
+			ctx.fillStyle = f.properties.color;
+			ctx.beginPath();
+			ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2);
+			ctx.fill();
+			ctx.fillStyle = "#ffffff";
+			ctx.fillText(f.properties.text ?? "", x, y + 0.5 * ratio);
+		}
+		return new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error("no_blob"))), "image/png"));
+	}
+
 	/** Encuadra todo lo dibujado. */
 	fitAll(animate = true) {
 		const b = boundsOf({ type: "FeatureCollection", features: this.features });
@@ -451,7 +571,15 @@ export class TerritoryMapController {
 		this.opts.onState?.({
 			tool: this.tool,
 			selected: f
-				? { id: f.properties.fid, type: shapeTypeOf(f), text: f.properties.text, emoji: f.properties.emoji }
+				? {
+						id: f.properties.fid,
+						type: shapeTypeOf(f),
+						text: f.properties.text,
+						emoji: f.properties.emoji,
+						label: f.properties.label,
+						departure: !!f.properties.departure,
+						size: f.properties.size,
+					}
 				: null,
 			drafting: this.draft.length,
 			canUndo: this.history.length > 0,
@@ -592,7 +720,7 @@ export class TerritoryMapController {
 				padding: "1px 4px",
 				borderRadius: "4px",
 				fontWeight: "700",
-				fontSize: "14px",
+				fontSize: `${TEXT_SIZE_PX[f.properties.size ?? "normal"]}px`,
 				lineHeight: "1.2",
 				color: "#111827",
 				whiteSpace: "nowrap",
@@ -600,16 +728,23 @@ export class TerritoryMapController {
 				boxShadow: ring,
 			});
 		} else if (f.properties.emoji) {
-			el.textContent = f.properties.emoji;
+			const icon = document.createElement("span");
+			icon.textContent = f.properties.emoji;
+			Object.assign(icon.style, { position: "relative", zIndex: "1" });
+			el.appendChild(icon);
 			Object.assign(el.style, {
+				position: "relative",
+				width: "max-content",
 				fontSize: "28px",
 				lineHeight: "1",
 				borderRadius: "8px",
 				textShadow: "0 1px 3px rgba(0,0,0,.35)",
 				boxShadow: ring,
 			});
+			this.decoratePoint(el, f);
 		} else {
 			Object.assign(el.style, {
+				position: "relative",
 				width: "16px",
 				height: "16px",
 				borderRadius: "9999px",
@@ -617,8 +752,41 @@ export class TerritoryMapController {
 				border: "3px solid #fff",
 				boxShadow: selected ? "0 0 0 3px #facc15" : "0 1px 3px rgba(0,0,0,.5)",
 			});
+			this.decoratePoint(el, f);
 		}
 		return el;
+	}
+
+	/**
+	 * Lo que acompaña a un punto: la etiqueta pegada debajo (posición absoluta, así el ancla del marcador sigue siendo el punto y la etiqueta
+	 * no se separa ni se encima a ningún zoom) y, si es la salida a la predicación, un pulso suave alrededor.
+	 */
+	private decoratePoint(el: HTMLElement, f: TerritoryFeature) {
+		ensurePulseStyle();
+		if (f.properties.departure) {
+			const pulse = document.createElement("span");
+			pulse.className = "td-departure-pulse";
+			el.appendChild(pulse);
+			el.title = "Salida a la predicación";
+		}
+		if (f.properties.label) {
+			const label = document.createElement("span");
+			label.textContent = f.properties.label;
+			Object.assign(label.style, {
+				position: "absolute",
+				top: "calc(100% + 2px)",
+				left: "50%",
+				transform: "translateX(-50%)",
+				whiteSpace: "nowrap",
+				fontSize: "12px",
+				fontWeight: "700",
+				lineHeight: "1.2",
+				color: "#111827",
+				textShadow: "-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 4px #fff",
+				pointerEvents: "none",
+			});
+			el.appendChild(label);
+		}
 	}
 
 	// --- Eventos ------------------------------------------------------------

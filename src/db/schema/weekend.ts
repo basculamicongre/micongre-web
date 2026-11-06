@@ -24,6 +24,8 @@ export const weekendMeetings = sqliteTable(
 		closingSongNumber: integer("closing_song_number"),
 		status: text("status", { enum: ["scheduled", "cancelled"] }).notNull().default("scheduled"),
 		notes: text("notes"),
+		// Evento que canceló esta reunión (migrations/0076); null = no la canceló un evento.
+		eventId: text("event_id"),
 	},
 	(t) => [uniqueIndex("weekend_date_idx").on(t.meetingDate)],
 );

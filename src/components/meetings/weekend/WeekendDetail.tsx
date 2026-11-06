@@ -17,6 +17,7 @@ import type { EligibleUser } from "@/lib/rbac/eligibility";
 import { PRIVILEGE_IDS } from "@/lib/rbac/roles";
 import { PageLoader } from "@/components/ui/Spinner";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import { CancelledByEvent, CoVisitBanner, MovedByEvent, type MeetingContext } from "@/components/events/MeetingEventBanner";
 
 interface Meeting {
 	id: string;
@@ -45,6 +46,8 @@ const ALL_PRIVILEGE_IDS = [
 export function WeekendDetail({ meetingId }: { meetingId: string }) {
 	const songTitles = useSongTitles();
 	const [saved, setSaved] = useState<Meeting | null>(null);
+	// Evento de esa semana (cancela o mueve la reunión) y visita del superintendente.
+	const [ctx, setCtx] = useState<MeetingContext>({});
 	// Cambios sin guardar: se envían todos juntos con el botón "Guardar".
 	const [draft, setDraft] = useState<Partial<Meeting>>({});
 	const [saving, setSaving] = useState(false);
@@ -68,8 +71,9 @@ export function WeekendDetail({ meetingId }: { meetingId: string }) {
 		]);
 		if (opRes.ok) setOpAssignments(((await opRes.json()) as { items: { userId: string; label: string }[] }).items);
 		if (detailRes.ok) {
-			const body = (await detailRes.json()) as { meeting: Meeting };
+			const body = (await detailRes.json()) as { meeting: Meeting } & MeetingContext;
 			setSaved(body.meeting);
+			setCtx({ event: body.event, coVisit: body.coVisit, date: body.date, time: body.time });
 		}
 		if (eligibleRes.ok) {
 			setEligibleByPrivilege(await eligibleRes.json());
@@ -149,11 +153,23 @@ export function WeekendDetail({ meetingId }: { meetingId: string }) {
 		return others.length ? `Ya está asignado este día como: ${others.join(", ")}.` : null;
 	}
 
+	// Cancelada por un evento: solo el evento, sin campos de asignación.
+	if (ctx.event?.action === "cancel") {
+		return (
+			<Card className="flex flex-col gap-5">
+				<h2 className="font-display text-[22px] font-medium leading-tight text-ink">{formatLongDate(ctx.date ?? meeting.meetingDate)}</h2>
+				<CancelledByEvent event={ctx.event} />
+			</Card>
+		);
+	}
+
 	return (
 		<Card className="flex flex-col gap-5">
+			{ctx.event?.action === "move" && <MovedByEvent event={ctx.event} date={ctx.date} time={ctx.time} />}
+			{ctx.coVisit && <CoVisitBanner visit={ctx.coVisit} which="weekend" />}
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<div className="min-w-0">
-					<h2 className="font-display text-[22px] font-medium leading-tight text-ink">{formatLongDate(meeting.meetingDate)}</h2>
+					<h2 className="font-display text-[22px] font-medium leading-tight text-ink">{formatLongDate(ctx.date ?? meeting.meetingDate)}</h2>
 				</div>
 				<div className="flex flex-wrap items-center gap-1">
 					{sendMessage && <span className="text-xs text-ink-soft">{sendMessage}</span>}

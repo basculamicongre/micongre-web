@@ -1,6 +1,7 @@
 import {
 	Bell,
 	Building2,
+	CalendarClock,
 	CalendarDays,
 	ClipboardList,
 	Compass,
@@ -114,6 +115,12 @@ export const NAV_GROUPS: NavGroup[] = [
 				href: "/congregation",
 				label: "Congregación",
 				icon: Building2,
+				requiresAnyPrivilege: [PRIVILEGE_CODES.CONGREGATION_ACCESS],
+			},
+			{
+				href: "/events",
+				label: "Eventos",
+				icon: CalendarClock,
 				requiresAnyPrivilege: [PRIVILEGE_CODES.CONGREGATION_ACCESS],
 			},
 			{

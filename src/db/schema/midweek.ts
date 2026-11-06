@@ -39,6 +39,8 @@ export const midweekMeetings = sqliteTable(
 		studyLessonReference: text("study_lesson_reference"),
 		hasAuxRoom: integer("has_aux_room", { mode: "boolean" }).notNull().default(false),
 		notes: text("notes"),
+		// Evento que canceló esta reunión (migrations/0076); null = no la canceló un evento. Sin FK en Drizzle para no crear un ciclo de imports.
+		eventId: text("event_id"),
 		createdAt: integer("created_at", { mode: "timestamp" })
 			.notNull()
 			.default(sql`(unixepoch())`),

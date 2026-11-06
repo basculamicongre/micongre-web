@@ -17,6 +17,7 @@ import { PRIVILEGE_IDS, SECTION_GROUP_BY_TYPE, SECTION_GROUP_LABELS, SECTION_LAB
 import { getStudentPartRule, STUDENT_PART_TITLES } from "@/lib/rbac/studentParts";
 import { PageLoader } from "@/components/ui/Spinner";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import { CancelledByEvent, CoVisitBanner, MovedByEvent, type MeetingContext } from "@/components/events/MeetingEventBanner";
 
 interface Assignment {
 	id: string;
@@ -96,6 +97,8 @@ function headerLabel(row: Assignment): string {
 
 export function WeekBuilder({ meetingId }: { meetingId: string }) {
 	const [savedMeeting, setSavedMeeting] = useState<Meeting | null>(null);
+	// Evento de esa semana (cancela o mueve la reunión) y visita del superintendente.
+	const [ctx, setCtx] = useState<MeetingContext>({});
 	const [skipOpeningPrayer, setSkipOpeningPrayer] = useState(false);
 	const [savedAssignments, setSavedAssignments] = useState<Assignment[]>([]);
 	// Cambios sin guardar: se envían todos juntos con el botón "Guardar".
@@ -123,7 +126,8 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 		]);
 		if (opRes.ok) setOpAssignments(((await opRes.json()) as { items: { userId: string; label: string }[] }).items);
 		if (detailRes.ok) {
-			const body = (await detailRes.json()) as { meeting: Meeting; assignments: Assignment[]; skipOpeningPrayer?: boolean };
+			const body = (await detailRes.json()) as { meeting: Meeting; assignments: Assignment[]; skipOpeningPrayer?: boolean } & MeetingContext;
+			setCtx({ event: body.event, coVisit: body.coVisit, date: body.date, time: body.time });
 			setSkipOpeningPrayer(!!body.skipOpeningPrayer);
 			setSavedMeeting(body.meeting);
 			setSavedAssignments(body.assignments);
@@ -265,10 +269,20 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 	}
 	const livingCount = groups.living.length;
 
+	// Cancelada por un evento: solo el evento, sin campos de asignación.
+	if (ctx.event?.action === "cancel") {
+		return (
+			<div className="flex flex-col gap-5">
+				<h2 className="font-display text-[22px] font-medium leading-tight text-ink">{formatLongDate(ctx.date ?? meeting.meetingDate)}</h2>
+				<CancelledByEvent event={ctx.event} />
+			</div>
+		);
+	}
+
 	return (
 		<div className="flex flex-col gap-5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<h2 className="font-display text-[22px] font-medium leading-tight text-ink">{formatLongDate(meeting.meetingDate)}</h2>
+				<h2 className="font-display text-[22px] font-medium leading-tight text-ink">{formatLongDate(ctx.date ?? meeting.meetingDate)}</h2>
 				<div className="flex flex-wrap items-center gap-1">
 					{sendMessage && <span className="text-xs text-ink-soft">{sendMessage}</span>}
 					<AutoAssignButton module="midweek" meetingId={meetingId} onApply={applyAutoAssign} disabled={dirty} />
@@ -280,6 +294,9 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 					</Button>
 				</div>
 			</div>
+
+			{ctx.event?.action === "move" && <MovedByEvent event={ctx.event} date={ctx.date} time={ctx.time} />}
+			{ctx.coVisit && <CoVisitBanner visit={ctx.coVisit} which="midweek" />}
 
 			<section>
 				<SectionLabel>Datos de la reunión</SectionLabel>
@@ -360,6 +377,22 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 								if (row.sectionType === "cbs") {
 									const cbsRows = rows.filter((r) => r.sectionType === "cbs");
 									if (cbsRows[0].id !== row.id) return null;
+									// Semana de la visita: en su lugar va el discurso de servicio del superintendente.
+									if (ctx.coVisit) {
+										const t = ctx.coVisit.midweekTalk;
+										return (
+											<div key={row.id} className="flex flex-col gap-1 px-4 py-4">
+												<p className="text-base font-semibold text-ink">
+													Discurso de servicio
+													<span className="ml-1.5 text-[13px] font-normal text-ink-soft">(30 mins.)</span>
+												</p>
+												<p className="text-sm text-ink">
+													{t.title || "(sin título)"} · {ctx.coVisit.overseerName}
+													{t.song ? ` · Canción ${t.song}` : ""}
+												</p>
+											</div>
+										);
+									}
 									const conductor = cbsRows.find((r) => r.sectionTitle === "Conductor") ?? cbsRows[0];
 									const reader = cbsRows.find((r) => r.sectionTitle === "Lector") ?? cbsRows[1];
 									const cbsParts = [{ part: conductor, label: "Conductor" }, ...(reader ? [{ part: reader, label: "Lector" }] : [])];

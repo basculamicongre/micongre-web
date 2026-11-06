@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Maximize, Minimize } from "lucide-react";
+import { Download, Maximize, Minimize } from "lucide-react";
 import { IconButton } from "@/components/ui/Layout";
 import { Spinner } from "@/components/ui/Spinner";
-import { buildAllTerritoriesMap, type TerritoryMapEntry } from "@/lib/territories/allMaps";
+import { allTerritoriesLegend, buildAllTerritoriesMap, type TerritoryMapEntry } from "@/lib/territories/allMaps";
+import type { TerritoryMapController } from "@/lib/territories/mapController";
 import type { TerritoryKind } from "@/lib/territories/geo";
 import { MapDialog, MapHeader } from "./MapDialog";
 import { TerritoryMap } from "./TerritoryMap";
@@ -19,6 +20,8 @@ export function AllTerritoriesMap({ kind, onClose }: { kind: TerritoryKind | nul
 	const [items, setItems] = useState<Item[] | null>(null);
 	const [failed, setFailed] = useState(false);
 	const [maximized, setMaximized] = useState(false);
+	const [controller, setController] = useState<TerritoryMapController | null>(null);
+	const [exporting, setExporting] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -43,7 +46,30 @@ export function AllTerritoriesMap({ kind, onClose }: { kind: TerritoryKind | nul
 	const shown = useMemo(() => (items ?? []).filter((t) => !kind || t.kind === kind), [items, kind]);
 	const data = useMemo(() => buildAllTerritoriesMap(shown), [shown]);
 	const title = "Todos los territorios";
+	const legend = useMemo(() => allTerritoriesLegend(shown), [shown]);
+
+	// Exporta lo que se ve del mapa con la simbología (números y nombres) a la izquierda.
+	async function exportImage() {
+		if (!controller) return;
+		setExporting(true);
+		try {
+			const blob = await controller.exportPng(title, legend);
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "territorios.png";
+			a.click();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		} catch {
+			alert("No se pudo exportar el mapa.");
+		} finally {
+			setExporting(false);
+		}
+	}
+
 	const toggle = (
+		<>
+		<IconButton label="Exportar el mapa como imagen (con la lista de territorios)" icon={Download} disabled={!controller || exporting} onClick={exportImage} />
 		<span className="hidden md:inline-flex">
 			<IconButton
 				label={maximized ? "Restaurar" : "Maximizar"}
@@ -51,6 +77,7 @@ export function AllTerritoriesMap({ kind, onClose }: { kind: TerritoryKind | nul
 				onClick={() => setMaximized((v) => !v)}
 			/>
 		</span>
+		</>
 	);
 
 	return (
@@ -60,9 +87,10 @@ export function AllTerritoriesMap({ kind, onClose }: { kind: TerritoryKind | nul
 					kind="general"
 					data={data}
 					title={title}
-					subtitle={shown.length === 1 ? "1 territorio con mapa" : `${shown.length} territorios con mapa`}
+					subtitle={legend.length === 1 ? "1 territorio con polígono" : `${legend.length} territorios con polígono`}
 					onClose={onClose}
 					headerActions={toggle}
+					onController={setController}
 				/>
 			) : (
 				<>

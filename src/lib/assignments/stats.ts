@@ -2,7 +2,7 @@
 // de asignación en los últimos 3 meses. Las filas de las reuniones (programa, roles y tareas operativas) son a la vez el plan y el registro.
 //
 // Presupuesto de consultas D1 (capa gratuita: ~50 por invocación): 7 en total, todas por rango de fechas y con joins (sin listas largas de ids).
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, or } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import {
 	CONGREGATION_ROW_ID,
@@ -11,8 +11,10 @@ import {
 	midweekMeetings,
 	operationalSchedules,
 	weekendMeetings,
+	congregationEvents,
 } from "@/db/schema";
 import { effectiveMeetingDate, type MeetingSchedules } from "@/lib/attendance/summary";
+import { buildOverrides } from "@/lib/events/rules";
 import { isMeetingCancelled } from "@/lib/cleaning/meetings";
 import { addDays, parseISODate, toISODate } from "@/lib/mwb/dates";
 
@@ -75,11 +77,19 @@ export async function readMeetingSchedules(db: Database): Promise<MeetingSchedul
 		.from(congregations)
 		.where(eq(congregations.id, CONGREGATION_ROW_ID))
 		.limit(1);
+	let schedules: MeetingSchedules | null = null;
 	try {
-		return row?.s ? (JSON.parse(row.s) as MeetingSchedules) : null;
+		schedules = row?.s ? (JSON.parse(row.s) as MeetingSchedules) : null;
 	} catch {
-		return null;
+		schedules = null;
 	}
+	// Reuniones movidas por un evento (solo esa semana): todo lo que calcula la fecha u hora real las respeta.
+	const moving = await db
+		.select()
+		.from(congregationEvents)
+		.where(or(eq(congregationEvents.midweekAction, "move"), eq(congregationEvents.weekendAction, "move")));
+	if (moving.length === 0) return schedules;
+	return { ...(schedules ?? {}), overrides: buildOverrides(moving) };
 }
 
 export async function loadAssignmentStats(db: Database, asOf = toISODate(new Date())): Promise<AssignmentStats> {

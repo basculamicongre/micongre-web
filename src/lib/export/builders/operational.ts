@@ -57,7 +57,7 @@ export async function buildOperational(ctx: BuilderContext): Promise<ReportDoc> 
 	]);
 
 	const meetings: { type: "midweek" | "weekend"; id: string; date: string }[] = [];
-	for (const r of mid) if (r.status === "scheduled") meetings.push({ type: "midweek", id: r.id, date: effectiveMeetingDate(r.meetingDate, "midweek", schedules) });
+	for (const r of mid) if (r.status === "scheduled" || r.status === "adjusted_co_visit") meetings.push({ type: "midweek", id: r.id, date: effectiveMeetingDate(r.meetingDate, "midweek", schedules) });
 	for (const r of wk) if (r.status !== "cancelled") meetings.push({ type: "weekend", id: r.id, date: effectiveMeetingDate(r.meetingDate, "weekend", schedules) });
 	const inRange = meetings
 		.filter((m) => m.date >= range.from && m.date <= range.to)

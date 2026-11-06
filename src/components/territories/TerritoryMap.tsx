@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import {
 	Check,
+	Flag,
 	Maximize2,
 	MapPin,
 	MousePointer2,
@@ -29,7 +30,9 @@ import {
 	ALLOWED_TOOLS,
 	boundsOf,
 	POINT_EMOJIS,
+	TEXT_SIZES,
 	type DrawTool,
+	type TextSize,
 	type TerritoryKind,
 	type TerritoryMapData,
 } from "@/lib/territories/geo";
@@ -52,9 +55,15 @@ const TOOL_META: Record<EditorTool, { label: string; icon: LucideIcon; hint: str
 		hint: "Toca el mapa para poner los vértices. Para cerrar: toca el primer vértice, doble clic, Enter o «Terminar».",
 	},
 	line: { label: "Línea", icon: Route, hint: "Toca el mapa para poner los puntos de la línea. Para terminar: doble clic, Enter o «Terminar»." },
-	point: { label: "Punto", icon: MapPin, hint: "Elige un emoji y toca el mapa para colocarlo." },
+	point: {
+		label: "Punto",
+		icon: MapPin,
+		hint: "Elige un emoji y toca el mapa para colocarlo. Al seleccionarlo puedes ponerle una etiqueta y marcarlo como salida a la predicación.",
+	},
 	text: { label: "Texto", icon: Type, hint: "Toca el mapa donde quieras poner el texto." },
 };
+
+const TEXT_SIZE_LABEL: Record<TextSize, string> = { normal: "Texto normal", medium: "Texto mediano", large: "Texto grande" };
 
 const TOOL_ORDER: EditorTool[] = ["select", "polygon", "line", "point", "text"];
 
@@ -82,9 +91,12 @@ export function TerritoryMap({
 	onChange,
 	searchHint,
 	headerActions,
+	onController,
 }: {
 	/** Botones extra a la derecha del encabezado (p. ej. maximizar). */
 	headerActions?: React.ReactNode;
+	/** Recibe el controlador cuando el mapa está listo (p. ej. para exportarlo como imagen). */
+	onController?: (controller: TerritoryMapController | null) => void;
 	kind: TerritoryKind;
 	/** Encabezado flotante del mapa (volver + título). */
 	title: string;
@@ -142,6 +154,7 @@ export function TerritoryMap({
 				}
 				controller = created;
 				controllerRef.current = created;
+				onController?.(created);
 				setStatus("ready");
 				if (!hasDrawing && editable) {
 					// Mapa vacío: se intenta centrar en la ubicación actual (el navegador
@@ -382,7 +395,57 @@ export function TerritoryMap({
 							</>
 						)}
 						{showSelectionActions && state.selected?.type === "text" && (
-							<IconButton label="Editar texto" icon={Pencil} onClick={() => controllerRef.current?.editSelectedText()} />
+							<>
+								<IconButton label="Editar texto" icon={Pencil} onClick={() => controllerRef.current?.editSelectedText()} />
+								{/* Tamaño del texto: el mismo ícono, cada vez más grande. */}
+								{TEXT_SIZES.map((size, i) => (
+									<Tooltip key={size} content={TEXT_SIZE_LABEL[size]}>
+										<button
+											type="button"
+											aria-label={TEXT_SIZE_LABEL[size]}
+											aria-pressed={(state.selected?.size ?? "normal") === size}
+											onClick={() => controllerRef.current?.setTextSize(size)}
+											className={`flex h-11 w-11 items-center justify-center rounded-full ${
+												(state.selected?.size ?? "normal") === size ? "bg-accent-soft text-accent" : "text-ink hover:bg-surface-alt"
+											}`}
+										>
+											<Type size={14 + i * 5} />
+										</button>
+									</Tooltip>
+								))}
+							</>
+						)}
+						{showSelectionActions && state.selected?.type === "point" && (
+							<>
+								<input
+									key={state.selected.id}
+									defaultValue={state.selected.label ?? ""}
+									placeholder="Etiqueta (opcional)"
+									maxLength={60}
+									aria-label="Etiqueta del punto"
+									onBlur={(e) => controllerRef.current?.setPointLabel(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											controllerRef.current?.setPointLabel((e.target as HTMLInputElement).value);
+										}
+									}}
+									className="h-10 w-40 rounded-full border border-border bg-surface px-3 text-base text-ink focus:border-accent focus:outline-none sm:text-sm"
+								/>
+								<Tooltip content={state.selected.departure ? "Es la salida a la predicación (toca para quitar)" : "Marcar como salida a la predicación"}>
+									<button
+										type="button"
+										aria-label="Salida a la predicación"
+										aria-pressed={!!state.selected.departure}
+										onClick={() => controllerRef.current?.setDeparture(!state.selected?.departure)}
+										className={`flex h-11 w-11 items-center justify-center rounded-full ${
+											state.selected.departure ? "bg-green-600 text-white" : "text-ink hover:bg-surface-alt"
+										}`}
+									>
+										<Flag size={20} />
+									</button>
+								</Tooltip>
+							</>
 						)}
 						{showSelectionActions && (
 							<IconButton label="Eliminar" icon={Trash2} tone="danger" onClick={() => controllerRef.current?.deleteSelected()} />
