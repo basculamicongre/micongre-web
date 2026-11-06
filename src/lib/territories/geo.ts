@@ -19,8 +19,12 @@ export interface TerritoryFeatureProperties {
 	emoji?: string;
 	/** Solo puntos: etiqueta que se muestra pegada debajo del punto, a cualquier zoom. */
 	label?: string;
-	/** Solo puntos: es el punto de salida a la predicación (se marca con un pulso). */
+	/** Solo puntos: es un punto de salida a la predicación (se marca con un pulso). Puede haber varios; `label` es su nombre. */
 	departure?: boolean;
+	/** Solo puntos de salida: dirección escrita. */
+	address?: string;
+	/** Solo puntos de salida: el que se usa si la salida de predicación no elige otro (uno por territorio). */
+	departureDefault?: boolean;
 	/** Solo textos: tamaño de la letra (sin valor = normal). */
 	size?: TextSize;
 	/** Solo en el mapa de todos los territorios (no se guarda): color del territorio; en un texto, rótulo con ese fondo. */
@@ -67,10 +71,51 @@ export function hasDisallowedFeatures(data: TerritoryMapData, kind: TerritoryKin
 	return data.features.some((f) => !ALLOWED_TOOLS[kind].includes(f.geometry.type === "Point" ? (f.properties.kind === "text" ? "text" : "point") : f.geometry.type === "Polygon" ? "polygon" : "line"));
 }
 
-/** El punto de salida a la predicación del dibujo (lng, lat), si hay uno marcado. */
+/** Un punto de salida a la predicación del territorio. */
+export interface Departure {
+	fid: string;
+	name: string;
+	address: string | null;
+	lng: number;
+	lat: number;
+	/** El predeterminado (el marcado; si ninguno lo está, el primero). */
+	isDefault: boolean;
+}
+
+/** Los puntos de salida del dibujo, en el orden en que se dibujaron; exactamente uno lleva `isDefault`. */
+export function listDepartures(data: TerritoryMapData | null | undefined): Departure[] {
+	const list: Departure[] = [];
+	for (const f of data?.features ?? []) {
+		if (f.geometry.type !== "Point" || !f.properties.departure || f.properties.kind === "text") continue;
+		const [lng, lat] = f.geometry.coordinates;
+		list.push({
+			fid: f.properties.fid,
+			// Sin repetir «Salida:» si la etiqueta ya lo trae (en el aviso va como «Salida: nombre»).
+			name: f.properties.label?.trim().replace(/^salida\s*:\s*/i, "") || "Punto de salida",
+			address: f.properties.address?.trim() || null,
+			lng,
+			lat,
+			isDefault: !!f.properties.departureDefault,
+		});
+	}
+	const def = list.findIndex((d) => d.isDefault);
+	return list.map((d, i) => ({ ...d, isDefault: def >= 0 ? i === def : i === 0 }));
+}
+
+/** El punto elegido para una salida de predicación; si no existe (o no se eligió), el predeterminado; null sin puntos de salida. */
+export function resolveDeparture(list: Departure[], fid: string | null | undefined): Departure | null {
+	return (fid ? list.find((d) => d.fid === fid) : undefined) ?? list.find((d) => d.isDefault) ?? null;
+}
+
+/** «Nombre — dirección» (o solo el nombre). */
+export function departureText(d: Departure): string {
+	return d.address ? `${d.name} — ${d.address}` : d.name;
+}
+
+/** El punto de salida predeterminado del dibujo (lng, lat), si hay alguno. */
 export function departurePoint(data: TerritoryMapData | null | undefined): LngLat | null {
-	const f = data?.features.find((x) => x.geometry.type === "Point" && x.properties.departure && x.properties.kind !== "text");
-	return f && f.geometry.type === "Point" ? f.geometry.coordinates : null;
+	const d = resolveDeparture(listDepartures(data), null);
+	return d ? [d.lng, d.lat] : null;
 }
 
 export const MAX_FEATURES = 500;

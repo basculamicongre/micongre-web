@@ -35,7 +35,7 @@ export type ShapeType = "polygon" | "line" | "point" | "text";
 
 export interface EditorState {
 	tool: EditorTool;
-	selected: { id: string; type: ShapeType; text?: string; emoji?: string; label?: string; departure?: boolean; size?: TextSize } | null;
+	selected: { id: string; type: ShapeType; text?: string; emoji?: string; label?: string; departure?: boolean; address?: string; departureDefault?: boolean; size?: TextSize } | null;
 	/** Vértices ya puestos del polígono/línea que se está dibujando. */
 	drafting: number;
 	canUndo: boolean;
@@ -320,13 +320,45 @@ export class TerritoryMapController {
 		this.changed();
 	}
 
-	/** Marca (o desmarca) el punto seleccionado como salida a la predicación; solo puede haber una por territorio. */
+	/** Marca (o desmarca) el punto seleccionado como salida a la predicación. Puede haber varias; la primera queda como
+	 * predeterminada. Al desmarcarla se le quitan la dirección y la marca de predeterminada. */
 	setDeparture(on: boolean) {
 		const f = this.selected();
 		if (!f || shapeTypeOf(f) !== "point") return;
 		this.pushHistory();
-		for (const other of this.features) delete other.properties.departure;
-		if (on) f.properties.departure = true;
+		if (on) {
+			f.properties.departure = true;
+			if (!this.features.some((o) => o !== f && o.properties.departure && o.properties.departureDefault)) f.properties.departureDefault = true;
+		} else {
+			const wasDefault = !!f.properties.departureDefault;
+			delete f.properties.departure;
+			delete f.properties.address;
+			delete f.properties.departureDefault;
+			const next = wasDefault ? this.features.find((o) => o.properties.departure) : undefined;
+			if (next) next.properties.departureDefault = true;
+		}
+		this.changed();
+	}
+
+	/** Dirección escrita del punto de salida seleccionado. */
+	setAddress(value: string) {
+		const f = this.selected();
+		if (!f || !f.properties.departure) return;
+		const address = value.trim().slice(0, 200);
+		if ((f.properties.address ?? "") === address) return;
+		this.pushHistory();
+		if (address) f.properties.address = address;
+		else delete f.properties.address;
+		this.changed();
+	}
+
+	/** El punto de salida seleccionado pasa a ser el predeterminado (el que se usa si la salida de predicación no elige otro). */
+	setDepartureDefault() {
+		const f = this.selected();
+		if (!f || !f.properties.departure || f.properties.departureDefault) return;
+		this.pushHistory();
+		for (const other of this.features) delete other.properties.departureDefault;
+		f.properties.departureDefault = true;
 		this.changed();
 	}
 
@@ -578,6 +610,8 @@ export class TerritoryMapController {
 						emoji: f.properties.emoji,
 						label: f.properties.label,
 						departure: !!f.properties.departure,
+						address: f.properties.address,
+						departureDefault: !!f.properties.departureDefault,
 						size: f.properties.size,
 					}
 				: null,
@@ -767,7 +801,7 @@ export class TerritoryMapController {
 			const pulse = document.createElement("span");
 			pulse.className = "td-departure-pulse";
 			el.appendChild(pulse);
-			el.title = "Salida a la predicación";
+			el.title = f.properties.label ? `Salida a la predicación: ${f.properties.label}` : "Salida a la predicación";
 		}
 		if (f.properties.label) {
 			const label = document.createElement("span");

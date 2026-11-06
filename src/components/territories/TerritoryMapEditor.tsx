@@ -58,6 +58,16 @@ export function TerritoryMapEditor({
 
 	async function save() {
 		if (!latest.current) return;
+		// Cada punto de salida necesita nombre y dirección: es lo que ven los publicadores en el aviso y en el calendario.
+		const incomplete = latest.current.features.filter((f) => f.properties.departure && (!f.properties.label?.trim() || !f.properties.address?.trim()));
+		if (incomplete.length > 0) {
+			setError(
+				incomplete.length === 1
+					? "Un punto de salida no tiene nombre o dirección. Selecciónalo y complétalo."
+					: `${incomplete.length} puntos de salida no tienen nombre o dirección. Selecciónalos y complétalos.`,
+			);
+			return;
+		}
 		setSaving(true);
 		setError(null);
 		const mapData = latest.current.features.length > 0 ? latest.current : null;

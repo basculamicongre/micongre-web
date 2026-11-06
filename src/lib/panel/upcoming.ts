@@ -72,7 +72,13 @@ export function selectUpcoming(items: PanelAssignment[], w: UpcomingWindow): Pan
 	for (const session of sorted.filter(isCaptainSession)) {
 		for (const id of session.territoryIds!) {
 			const t = mine.get(id)!;
-			if (!t.nextSession) t.nextSession = session.when ?? session.date;
+			if (!t.nextSession) {
+				t.nextSession = session.when ?? session.date;
+				// El punto de salida de ese día (y su selector) pasa al territorio del capitán.
+				if (session.detail) t.detail = session.detail;
+				const choices = session.departureChoices?.filter((c) => c.territoryId === id);
+				if (choices?.length) t.departureChoices = choices;
+			}
 		}
 	}
 	for (const t of territories) {

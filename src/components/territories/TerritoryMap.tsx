@@ -13,6 +13,7 @@ import {
 	Route,
 	LocateFixed,
 	Search,
+	Star,
 	Trash2,
 	Type,
 	Undo2,
@@ -420,7 +421,7 @@ export function TerritoryMap({
 								<input
 									key={state.selected.id}
 									defaultValue={state.selected.label ?? ""}
-									placeholder="Etiqueta (opcional)"
+									placeholder={state.selected.departure ? "Nombre del punto de salida" : "Etiqueta (opcional)"}
 									maxLength={60}
 									aria-label="Etiqueta del punto"
 									onBlur={(e) => controllerRef.current?.setPointLabel(e.target.value)}
@@ -432,7 +433,7 @@ export function TerritoryMap({
 									}}
 									className="h-10 w-40 rounded-full border border-border bg-surface px-3 text-base text-ink focus:border-accent focus:outline-none sm:text-sm"
 								/>
-								<Tooltip content={state.selected.departure ? "Es la salida a la predicación (toca para quitar)" : "Marcar como salida a la predicación"}>
+								<Tooltip content={state.selected.departure ? "Es un punto de salida a la predicación (toca para quitar)" : "Marcar como punto de salida a la predicación"}>
 									<button
 										type="button"
 										aria-label="Salida a la predicación"
@@ -450,6 +451,36 @@ export function TerritoryMap({
 						{showSelectionActions && (
 							<IconButton label="Eliminar" icon={Trash2} tone="danger" onClick={() => controllerRef.current?.deleteSelected()} />
 						)}
+					</div>
+				)}
+
+				{/* Punto de salida: además del nombre (la etiqueta), la dirección escrita y si es el predeterminado. */}
+				{showSelectionActions && state.selected?.type === "point" && state.selected.departure && (
+					<div className="pointer-events-auto flex w-full max-w-md flex-col gap-2 rounded-2xl bg-surface/95 p-3 shadow-md">
+						<p className="text-xs font-semibold text-ink">Punto de salida a la predicación</p>
+						{!state.selected.label && <p className="text-xs text-warn">Escribe el nombre del punto (arriba).</p>}
+						<textarea
+							key={`addr-${state.selected.id}`}
+							defaultValue={state.selected.address ?? ""}
+							placeholder="Dirección escrita (p. ej. de la iglesia católica 2 c. al sur)"
+							maxLength={200}
+							rows={2}
+							aria-label="Dirección del punto de salida"
+							onBlur={(e) => controllerRef.current?.setAddress(e.target.value)}
+							className="w-full resize-none rounded-xl border border-border bg-surface px-3 py-2 text-base text-ink focus:border-accent focus:outline-none sm:text-sm"
+						/>
+						<button
+							type="button"
+							aria-pressed={!!state.selected.departureDefault}
+							disabled={!!state.selected.departureDefault}
+							onClick={() => controllerRef.current?.setDepartureDefault()}
+							className={`flex min-h-10 items-center gap-2 self-start rounded-full px-3 text-sm ${
+								state.selected.departureDefault ? "bg-accent-soft text-accent" : "border border-border text-ink hover:bg-surface-alt"
+							}`}
+						>
+							<Star size={16} className={state.selected.departureDefault ? "fill-current" : ""} />
+							{state.selected.departureDefault ? "Predeterminado" : "Usar como predeterminado"}
+						</button>
 					</div>
 				)}
 

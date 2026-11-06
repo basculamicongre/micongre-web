@@ -4,7 +4,7 @@ import { getDb } from "@/db/client";
 import { CONGREGATION_ROW_ID, congregations, fieldServiceGroups } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { preachingErrorResponse } from "@/lib/preaching/http";
-import { listAssignablePeople, listAssignableTerritories } from "@/lib/preaching/service";
+import { listAssignablePeople, listAssignableTerritories, loadDepartures } from "@/lib/preaching/service";
 import { assertCanAccessPreachingModule } from "@/lib/rbac/guards";
 
 // Lo que el formulario ofrece: territorios con asignación vigente, grupos activos y personas.
@@ -22,7 +22,17 @@ export async function GET() {
 				.orderBy(asc(fieldServiceGroups.name)),
 			listAssignablePeople(db),
 		]);
-		return NextResponse.json({ territories, groups, people, defaultTime: cong?.time ?? "09:00" });
+		// Puntos de salida de cada territorio, para elegir el de la salida.
+		const departures = await loadDepartures(
+			db,
+			territories.map((t) => t.id),
+		);
+		return NextResponse.json({
+			territories: territories.map((t) => ({ ...t, departures: departures.get(t.id) ?? [] })),
+			groups,
+			people,
+			defaultTime: cong?.time ?? "09:00",
+		});
 	} catch (error) {
 		return preachingErrorResponse(error);
 	}

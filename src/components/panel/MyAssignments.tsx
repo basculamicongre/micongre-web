@@ -7,7 +7,8 @@ import { IconButton, List, SectionLabel } from "@/components/ui/Layout";
 import { Modal } from "@/components/ui/Modal";
 import { TerritoryMapViewer } from "@/components/territories/TerritoryMapViewer";
 import { formatShortDate } from "@/lib/dateFormat";
-import type { PanelAssignment } from "@/lib/queries/panel";
+import type { DepartureChoice, PanelAssignment } from "@/lib/queries/panel";
+import { departureText } from "@/lib/territories/geo";
 
 const MEETING_TYPE_LABEL: Record<string, string> = {
 	midweek: "Entre semana",
@@ -100,6 +101,9 @@ export function MyAssignments({
 									)}
 									<p className="mt-0.5 text-base font-semibold text-ink">{item.label}</p>
 									{item.detail && <p className="mt-0.5 whitespace-pre-line text-[13px] text-ink-soft">{item.detail}</p>}
+									{item.departureChoices?.map((c) => (
+										<DepartureSelect key={`${c.sessionId}-${c.territoryId}`} choice={c} many={item.departureChoices!.length > 1} onChanged={onChange} />
+									))}
 									{pending && <p className="mt-0.5 text-[13px] text-ink-soft">Asignado el {dates}</p>}
 									{territory && !pending && territory.comment && (
 										<p className="mt-0.5 text-[13px] text-ink-soft">«{territory.comment}»</p>
@@ -175,5 +179,51 @@ export function MyAssignments({
 				</Modal>
 			)}
 		</section>
+	);
+}
+
+/** El capitán elige el punto de salida de ese día (antes de la salida o hasta 2 horas después). Al cambiarlo se reenvía el aviso. */
+function DepartureSelect({ choice, many, onChanged }: { choice: DepartureChoice; many: boolean; onChanged?: () => void }) {
+	const [value, setValue] = useState(choice.currentFid ?? "");
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	async function change(fid: string) {
+		const previous = value;
+		setValue(fid);
+		setBusy(true);
+		setError(null);
+		const response = await fetch(`/api/preaching/${choice.sessionId}/departure`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ territoryId: choice.territoryId, fid }),
+		});
+		setBusy(false);
+		if (!response.ok) {
+			const body = (await response.json().catch(() => null)) as { error?: string } | null;
+			setValue(previous);
+			setError(body?.error === "departure_locked" ? "Ya no se puede cambiar: pasaron más de 2 horas desde la salida." : "No se pudo cambiar el punto de salida.");
+			return;
+		}
+		onChanged?.();
+	}
+
+	return (
+		<label className="mt-1.5 flex flex-col gap-1">
+			<span className="text-xs font-semibold text-ink-soft">Punto de salida{many ? ` · ${choice.territoryLabel}` : ""}</span>
+			<select
+				value={value}
+				disabled={busy}
+				onChange={(e) => change(e.target.value)}
+				className="min-h-11 w-full max-w-md rounded-2xl border border-border bg-surface px-3 text-base text-ink disabled:opacity-60 sm:text-sm"
+			>
+				{choice.options.map((d) => (
+					<option key={d.fid} value={d.fid} title={departureText(d)}>
+						{d.name}
+					</option>
+				))}
+			</select>
+			{error && <span className="text-xs text-red-600">{error}</span>}
+		</label>
 	);
 }

@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PageLoader } from "@/components/ui/Spinner";
 import { TerritoryMapViewer } from "@/components/territories/TerritoryMapViewer";
 import { formatLongDate, formatShortDate } from "@/lib/dateFormat";
-import { TERRITORY_KIND_LABEL, type TerritoryKind } from "@/lib/territories/geo";
+import { TERRITORY_KIND_LABEL, departureText, type Departure, type TerritoryKind } from "@/lib/territories/geo";
 
 interface SessionRow {
 	id: string;
@@ -20,12 +20,21 @@ interface SessionRow {
 	kind: TerritoryKind;
 	recurring: boolean;
 	notifiedAt: string | null;
-	territories: { id: string; number: string; name: string | null; meetingPlace: string | null; hasMap: boolean }[];
+	territories: {
+		id: string;
+		number: string;
+		name: string | null;
+		meetingPlace: string | null;
+		hasMap: boolean;
+		departureFid: string | null;
+		departure: Departure | null;
+		departures: Departure[];
+	}[];
 	targets: { congregation: boolean; groups: { id: string; name: string; color: string | null }[]; users: { id: string; fullName: string }[] };
 }
 
 interface Options {
-	territories: { id: string; number: string; name: string | null; kind: TerritoryKind; assigneeName: string }[];
+	territories: { id: string; number: string; name: string | null; kind: TerritoryKind; assigneeName: string; departures: Departure[] }[];
 	groups: { id: string; name: string; color: string | null }[];
 	people: { id: string; fullName: string }[];
 	defaultTime?: string;
@@ -38,6 +47,7 @@ const ERRORS: Record<string, string> = {
 	territory_not_assigned: "Solo se pueden usar territorios que ya estén asignados.",
 	mixed_kinds: "Los territorios de una misma salida deben ser del mismo tipo.",
 	invalid_targets: "Revisa a quién se asigna: territorios generales → toda la congregación o grupos; predicación pública → publicadores.",
+	invalid_departure: "El punto de salida elegido ya no existe en el mapa del territorio.",
 };
 
 function time12(value: string): string {
@@ -292,12 +302,23 @@ function SessionBody({ s }: { s: SessionRow }) {
 					</span>
 				)}
 			</div>
-			{/* Lugar de reunión de cada territorio (solo el texto). */}
-			{[...new Set(s.territories.map((t) => t.meetingPlace).filter(Boolean))].map((place) => (
-				<div key={place} className="mt-1 whitespace-pre-line pr-3 text-[13px] font-medium text-ink">
-					{place}
-				</div>
-			))}
+			{/* Punto de salida de ese día y las indicaciones de cada territorio. */}
+			{s.territories.map((t) =>
+				t.departure || t.meetingPlace ? (
+					<div key={t.id} className="mt-1 pr-3 text-[13px] text-ink">
+						{t.departure && (
+							<div className="flex items-start gap-1.5 font-medium">
+								<MapPin size={14} className="mt-0.5 shrink-0 text-green-600" />
+								<span>
+									{s.territories.length > 1 ? `${t.number}: ` : ""}
+									{departureText(t.departure)}
+								</span>
+							</div>
+						)}
+						{t.meetingPlace && <div className="whitespace-pre-line text-ink-soft">{t.meetingPlace}</div>}
+					</div>
+				) : null,
+			)}
 			{s.note && <div className="mt-1 pr-3 text-[13px] text-ink">{s.note}</div>}
 		</>
 	);
@@ -407,6 +428,10 @@ function SessionForm({ session, initialDate, onClose, onSaved }: { session: Sess
 	const [note, setNote] = useState(session?.note ?? "");
 	const [recurring, setRecurring] = useState(session?.recurring ?? false);
 	const [territoryIds, setTerritoryIds] = useState<string[]>(session?.territories.map((t) => t.id) ?? []);
+	// Punto de salida elegido por territorio (null = el predeterminado).
+	const [departures, setDepartures] = useState<Record<string, string | null>>(
+		Object.fromEntries((session?.territories ?? []).map((t) => [t.id, t.departureFid])),
+	);
 	const [congregation, setCongregation] = useState(session?.targets.congregation ?? true);
 	const [groupIds, setGroupIds] = useState<string[]>(session?.targets.groups.map((g) => g.id) ?? []);
 	const [userIds, setUserIds] = useState<string[]>(session?.targets.users.map((u) => u.id) ?? []);
@@ -434,7 +459,8 @@ function SessionForm({ session, initialDate, onClose, onSaved }: { session: Sess
 	const territoryList = useMemo(() => {
 		const list = [...(options?.territories ?? [])];
 		for (const t of session?.territories ?? []) {
-			if (!list.some((x) => x.id === t.id)) list.push({ id: t.id, number: t.number, name: t.name, kind: session!.kind, assigneeName: "sin asignación vigente" });
+			if (!list.some((x) => x.id === t.id))
+				list.push({ id: t.id, number: t.number, name: t.name, kind: session!.kind, assigneeName: "sin asignación vigente", departures: t.departures });
 		}
 		return list.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
 	}, [options, session]);
@@ -457,6 +483,7 @@ function SessionForm({ session, initialDate, onClose, onSaved }: { session: Sess
 			note: note.trim() || null,
 			recurring,
 			territoryIds,
+			departures: Object.fromEntries(territoryIds.map((id) => [id, departures[id] ?? null])),
 			targets:
 				kind === "public_preaching"
 					? { congregation: false, groupIds: [], userIds }
@@ -526,6 +553,29 @@ function SessionForm({ session, initialDate, onClose, onSaved }: { session: Sess
 						)}
 						<p className="text-xs text-ink-soft">Puedes elegir varios del mismo tipo para el mismo día.</p>
 					</div>
+
+					{/* Punto de salida de cada territorio elegido que tenga más de uno en su mapa. */}
+					{territoryList
+						.filter((t) => territoryIds.includes(t.id) && t.departures.length > 1)
+						.map((t) => (
+							<label key={t.id} className="flex flex-col gap-1.5">
+								<span className="text-sm font-medium text-ink">Punto de salida · {t.name || `Territorio ${t.number}`}</span>
+								<select
+									value={departures[t.id] && departures[t.id] !== t.departures.find((d) => d.isDefault)?.fid ? (departures[t.id] as string) : ""}
+									onChange={(e) => setDepartures((d) => ({ ...d, [t.id]: e.target.value || null }))}
+									className="min-h-12 rounded-2xl border border-border bg-surface px-3 text-base text-ink sm:text-sm"
+								>
+									<option value="">Predeterminado ({departureText(t.departures.find((d) => d.isDefault) ?? t.departures[0])})</option>
+									{t.departures
+										.filter((d) => !d.isDefault)
+										.map((d) => (
+											<option key={d.fid} value={d.fid}>
+												{departureText(d)}
+											</option>
+										))}
+								</select>
+							</label>
+						))}
 
 					{kind === null && <p className="text-sm text-ink-soft">Elige un territorio para ver a quién se puede asignar.</p>}
 

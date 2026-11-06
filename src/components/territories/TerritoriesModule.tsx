@@ -271,15 +271,18 @@ function TerritoryFormModal({
 					<option value="public_preaching">{TERRITORY_KIND_LABEL.public_preaching}</option>
 				</Select>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="font-medium text-ink">Lugar de reunión (opcional)</span>
+					<span className="font-medium text-ink">Indicaciones (opcional)</span>
 					<textarea
-						placeholder="p. ej. Casa de la familia López, frente al parque"
+						placeholder="p. ej. Tocar el portón verde; se puede parquear atrás"
 						value={meetingPlace}
 						onChange={(e) => setMeetingPlace(e.target.value)}
 						maxLength={500}
 						rows={3}
 						className="rounded-2xl border border-border bg-surface px-4 py-3 text-base text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
 					/>
+					<span className="text-xs text-ink-soft">
+						Los puntos de salida (con nombre y dirección) se marcan en el mapa del territorio; las indicaciones acompañan al punto de cada salida.
+					</span>
 				</label>
 				<Input label="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
 				{error && <p className="text-sm text-warn">{error}</p>}
