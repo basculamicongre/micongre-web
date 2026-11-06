@@ -54,6 +54,7 @@ export const updateCongregationSchema = z.object({
 	skipOpeningPrayer: z.boolean().optional(),
 	animationsEnabled: z.boolean().optional(),
 	mapsVisibleToAll: z.boolean().optional(),
+	visitRequestsByGroupOverseer: z.boolean().optional(),
 	reminderHour: z.number().int().min(0).max(23).optional().nullable(),
 	linkCongregationUrl: linkUrl,
 	linkCongregationColor: linkColor,

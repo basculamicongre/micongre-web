@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { fieldServiceGroups, serviceReports, users } from "@/db/schema";
 import { RbacError } from "@/lib/rbac/errors";
 import { getReportsGroupIds } from "@/lib/rbac/guards";
@@ -19,7 +19,8 @@ export async function buildInformes({ db, session, params }: BuilderContext): Pr
 	const month = match ? Number(match[2]) : now.getMonth() + 1;
 	if (month < 1 || month > 12) throw new Error("invalid_month");
 
-	const conditions = [eq(users.congregationStatus, "active"), notHiddenAdmin];
+	// Los estudiantes todavía no informan: no salen en Informes.
+	const conditions = [eq(users.congregationStatus, "active"), ne(users.theocraticStatus, "student"), notHiddenAdmin];
 	const groupIds = await getReportsGroupIds(db, session);
 	if (groupIds !== null) {
 		if (groupIds.length === 0) throw new RbacError("No supervisas ningún grupo de servicio.");

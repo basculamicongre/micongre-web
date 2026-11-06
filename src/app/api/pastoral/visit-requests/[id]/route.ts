@@ -1,9 +1,10 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db/client";
-import { shepherdingVisitRequests, theocraticAppointments } from "@/db/schema";
+import { shepherdingVisitRequests } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
+import { canReceiveVisits } from "@/lib/pastoral/visitRequests";
 import { assertIsServiceCommittee } from "@/lib/rbac/guards";
 import { assignVisitRequestSchema } from "@/lib/validation/pastoralCare";
 
@@ -20,19 +21,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 			return NextResponse.json({ error: "invalid_body", details: parsed.error.flatten() }, { status: 400 });
 		}
 
-		// Revalida que ambos sean ancianos activos — nunca confía en que la
-		// opción vino realmente del selector filtrado del comité.
-		const activeElders = await db
-			.select({ id: theocraticAppointments.userId })
-			.from(theocraticAppointments)
-			.where(
-				and(
-					inArray(theocraticAppointments.userId, parsed.data.assignedElders),
-					eq(theocraticAppointments.appointmentType, "elder"),
-					isNull(theocraticAppointments.endDate),
-				),
-			);
-		if (activeElders.length !== 2) {
+		// Revalida que ambos tengan «Realiza pastoreos»: nunca confía en que la opción vino del selector filtrado.
+		if (!(await canReceiveVisits(db, parsed.data.assignedElders))) {
 			return NextResponse.json({ error: "invalid_elders" }, { status: 400 });
 		}
 

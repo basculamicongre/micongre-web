@@ -54,3 +54,8 @@ export const updateVisitRequestStatusSchema = z.object({
 		.optional(),
 	notes: z.string().trim().max(1000).optional().nullable(),
 });
+
+/** Reasignar un pastoreo solicitado (superintendente de grupo, comité o admin): una o dos personas con «Realiza pastoreos». */
+export const reassignVisitRequestSchema = z.object({
+	assignedTo: z.array(z.string().uuid()).min(1).max(2),
+});

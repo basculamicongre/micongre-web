@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db/client";
 import { serviceReports, theocraticAppointments, users } from "@/db/schema";
@@ -24,7 +24,8 @@ export async function GET(request: Request) {
 
 		const db = getDb();
 
-		const scopeConditions = [eq(users.congregationStatus, "active"), notHiddenAdmin];
+		// Los estudiantes todavía no informan: no salen en Informes.
+		const scopeConditions = [eq(users.congregationStatus, "active"), ne(users.theocraticStatus, "student"), notHiddenAdmin];
 		const groupIds = await getReportsGroupIds(db, session);
 		if (groupIds !== null) {
 			if (groupIds.length === 0) {
@@ -87,6 +88,9 @@ export async function POST(request: Request) {
 		const replay = await replayIfProcessed(db, request, session.userId);
 		if (replay) return replay;
 		await assertCanManageReport(db, session, parsed.data.userId);
+		// Los estudiantes todavía no informan.
+		const [target] = await db.select({ status: users.theocraticStatus }).from(users).where(eq(users.id, parsed.data.userId)).limit(1);
+		if (target?.status === "student") return NextResponse.json({ error: "student_cannot_report" }, { status: 400 });
 
 		// Desde la cola sin internet: si el informe cambió mientras tanto, no se pisa — la app lo guarda y avisa.
 		const { baseVersion, ...report } = parsed.data;

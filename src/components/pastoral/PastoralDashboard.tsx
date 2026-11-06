@@ -243,7 +243,7 @@ export function PastoralDashboard() {
 	async function saveAssign() {
 		if (!assigningId) return;
 		if (!assignElder1 || !assignElder2 || assignElder1 === assignElder2) {
-			setAssignError("Selecciona 2 ancianos distintos.");
+			setAssignError("Selecciona 2 hermanos distintos.");
 			return;
 		}
 		const response = await fetch(`/api/pastoral/visit-requests/${assigningId}`, {
@@ -438,7 +438,7 @@ export function PastoralDashboard() {
 														{r.notes ? ` · ${r.notes}` : ""}
 													</div>
 													{r.assignedElders && (
-														<div className="mt-0.5 text-[13px] text-ink-soft">Ancianos: {r.assignedElders.join(", ")}</div>
+														<div className="mt-0.5 text-[13px] text-ink-soft">Asignados: {r.assignedElders.join(", ")}</div>
 													)}
 												</div>
 												{r.assignedElders ? (
@@ -447,7 +447,7 @@ export function PastoralDashboard() {
 													</Badge>
 												) : assigningId === r.id ? null : (
 													<div className="-my-1 -mr-2 flex shrink-0 items-center">
-														<IconButton label="Asignar ancianos" icon={UserPlus} tone="accent" onClick={() => openAssign(r)} />
+														<IconButton label="Asignar" icon={UserPlus} tone="accent" onClick={() => openAssign(r)} />
 														<IconButton label="Eliminar" icon={Trash2} tone="danger" onClick={() => setConfirmDelete(r)} />
 													</div>
 												)}
@@ -455,7 +455,7 @@ export function PastoralDashboard() {
 											{!r.assignedElders && assigningId === r.id && (
 												<div className="mt-3 flex flex-col gap-2">
 													<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-														<Select label="Anciano 1" value={assignElder1} onChange={(e) => setAssignElder1(e.target.value)}>
+														<Select label="Hermano 1" value={assignElder1} onChange={(e) => setAssignElder1(e.target.value)}>
 															<option value="">Selecciona</option>
 															{elders.map((e) => (
 																<option key={e.id} value={e.id}>
@@ -463,7 +463,7 @@ export function PastoralDashboard() {
 																</option>
 															))}
 														</Select>
-														<Select label="Anciano 2" value={assignElder2} onChange={(e) => setAssignElder2(e.target.value)}>
+														<Select label="Hermano 2" value={assignElder2} onChange={(e) => setAssignElder2(e.target.value)}>
 															<option value="">Selecciona</option>
 															{elders.map((e) => (
 																<option key={e.id} value={e.id}>

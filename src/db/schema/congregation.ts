@@ -39,6 +39,9 @@ export const congregations = sqliteTable("congregations", {
 	// Mapas de territorios en el calendario de predicación: true = los ve cualquier publicador (solo lectura); false = solo
 	// quien tiene el privilegio (territoryMapKindsFor).
 	mapsVisibleToAll: integer("maps_visible_to_all", { mode: "boolean" }).notNull().default(false),
+	// Pastoreos solicitados desde Mi Panel: true = quedan con el superintendente del grupo de quien lo pide, que puede
+	// reasignarlos a quien tenga «Realiza pastoreos»; false = los asigna el comité de servicio (migración 0074).
+	visitRequestsByGroupOverseer: integer("visit_requests_by_group_overseer", { mode: "boolean" }).notNull().default(false),
 	// Puestos de tareas operativas: false = todavía no se configuraron (vale la plantilla por omisión: un puesto por cada
 	// privilegio operativo); true = manda operational_template_slots, aunque esté vacía (migración 0068).
 	operationalTemplateSet: integer("operational_template_set", { mode: "boolean" }).notNull().default(false),

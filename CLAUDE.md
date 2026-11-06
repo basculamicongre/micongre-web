@@ -107,6 +107,12 @@ Una salida de predicación (`preaching_sessions`) puede marcarse **Recurrente** 
 
 Congregación → Datos generales tiene el enlace de JW.ORG de nuestra congregación (`congregations.jw_url`, `latitude`, `longitude`, `migrations/0073`; `JwSyncCard` → `POST /api/congregation/jw`, `lib/jw/ownCongregation.ts::syncOwnCongregation`): «Actualizar» trae del Hub nombre, dirección y coordenadas del Salón y los horarios de reunión, y el job diario lo repite (paso `congregations`). En Mi Panel los discursos públicos muestran la congregación y la hora y un botón de mapa a `https://www.google.com/maps?q=lat,lng` (`mapsUrl` en `lib/queries/panel.ts`): la nuestra si es local, la de `speaker_congregations` si sale; sin coordenadas no hay botón.
 
+### Congregación: Información / Configuración
+
+`CongregationSettingsForm` tiene dos pestañas con un solo «Guardar»: **Información** (datos generales, comité, horarios de reunión, acuerdos del Salón) y **Configuración** (lo que cambia cómo funciona la app: dirección pública + QR, recordatorio, oración inicial, pastoreos solicitados, mapas, enlaces de Mi Panel, animaciones, tema de reportes, jobs y zona de peligro). Un interruptor nuevo que cambie el funcionamiento va en Configuración.
+
+**Pastoreos solicitados** (`congregations.visit_requests_by_group_overseer`, `migrations/0074`, `lib/pastoral/visitRequests.ts` + reglas puras en `visitRequestRules.ts`): encendido, la solicitud de Mi Panel nace asignada al superintendente del grupo de quien la pide (con push) y él, el comité o un admin la reasignan a 1–2 personas con el privilegio «Realiza pastoreos» (`priv_shepherding_visitor`: todo anciano por regla, a otros a mano) con `PATCH /api/pastoral/visit-requests/[id]/reassign`; sin superintendente (o si quien pide lo es) va al comité. La asignación del comité también usa ese privilegio. Apagado, todo como antes.
+
 ### Route/module dependency order
 
 If extending the app, this is the order things were actually built in and the order their data dependencies require: schema/migrations → auth → RBAC eligibility engine → publishers (+ appointments/privileges grants, which live under `api/publishers/[id]/...`) → field service groups → the two meeting planners (midweek, weekend — independent of each other, both depend on eligibility) → operational tasks matrix (depends on both meeting planners existing, for collision checks) → reports/attendance (depends on field service groups for dual authorship) → the regular-user panel (`/panel`, reads across all of the above via `src/lib/queries/panel.ts`, built last since it has no writes of its own besides self-service S-4).
@@ -122,6 +128,10 @@ Catálogo `songs` (número = identificador, título) del EPUB «Cantemos con goz
 **Orden de la reunión de fin de semana:** `weekend_meetings.watchtower_first` (casilla «Iniciar con La Atalaya» (solo quien administra el módulo de fin de semana puede cambiarla; la API ya lo exige)). Normal: canción del discurso (la del orador para ese bosquejo) → discurso → canción de La Atalaya → estudio → canción al terminar La Atalaya + oración. Con La Atalaya primero: canción de La Atalaya → estudio → canción al terminar → discurso → canción del discurso + oración. En el programa y en la app las canciones no se llaman «inicial/final», solo «Canción N: título», cada una junto a su parte.
 
 **Mensaje para oradores (fin de semana):** pestaña «Mensaje» con dos plantillas editables (`weekend_message_templates`: `incoming` = invitado que llega, `outgoing` = local que sale) con palabras clave entre llaves (`lib/weekend/messageTemplate.ts`: `{orador}`, `{congregacion_orador}`, `{congregacion_destino}`, `{dia}`, `{fecha}`, `{hora}`, `{bosquejo_numero}`, `{bosquejo_titulo}`, `{cancion}`, `{direccion}`); una línea cuyas palabras clave queden vacías se omite. `GET /api/weekend/message?kind=incoming&meetingId=…` / `kind=outgoing&outgoingId=…` arma el texto con los datos reales (fecha real de la reunión según el día configurado) y `CopyMessageButton` lo copia al portapapeles: junto al orador invitado en el planificador y en cada discurso enviado.
+
+### Tiempo de asignaciones (solo Android)
+
+Privilegio «Ver tiempo de asignaciones» (`meeting_timer`, `migrations/0075`; lo recibe solo el nombramiento `auxiliary_counselor` «Consejero auxiliar», y a otros se otorga a mano). En la pantalla de reuniones de la app, quien preside esa reunión (`chairmanUserId`), el consejero auxiliar o quien tenga el privilegio ve un botón de reloj: cronómetro local (no se guarda en el servidor) con la hora en que debe iniciar cada asignación (canciones de 5 min, sin hora; 1 min de cambio entre dos asignaciones) y cuánto duró cada una. La web no tiene pantalla para esto.
 
 ### Asignación automática (`lib/assignments/`)
 

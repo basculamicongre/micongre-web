@@ -25,7 +25,7 @@ interface Group {
 
 const now = new Date();
 
-export function PanelDashboard({ userId, fullName }: { userId: string; fullName: string }) {
+export function PanelDashboard({ userId, fullName, canReport = true }: { userId: string; fullName: string; canReport?: boolean }) {
 	const [upcoming, setUpcoming] = useState<PanelAssignment[]>([]);
 	const [history, setHistory] = useState<PanelAssignment[]>([]);
 	const [group, setGroup] = useState<Group | null>(null);
@@ -70,7 +70,7 @@ export function PanelDashboard({ userId, fullName }: { userId: string; fullName:
 					</h1>
 				</div>
 				<div className="hidden lg:block">
-					<PanelActions userId={userId} onRequestPastoralVisit={() => setRequestFormOpen(true)} />
+					<PanelActions userId={userId} canReport={canReport} onRequestPastoralVisit={() => setRequestFormOpen(true)} />
 				</div>
 				<Link prefetch={false} href="/profile" aria-label="Mi perfil" className="shrink-0 lg:hidden">
 					<Avatar name={fullName} size={44} />
@@ -83,11 +83,13 @@ export function PanelDashboard({ userId, fullName }: { userId: string; fullName:
 						<MyAssignments title="Mis asignaciones" items={upcoming} emptyLabel="No tienes asignaciones próximas." onChange={load} />
 					</div>
 					<div className="order-3 lg:hidden">
-						<PanelActions userId={userId} onRequestPastoralVisit={() => setRequestFormOpen(true)} />
+						<PanelActions userId={userId} canReport={canReport} onRequestPastoralVisit={() => setRequestFormOpen(true)} />
 					</div>
-					<div className="order-4 empty:hidden">
-						<MyServiceReports userId={userId} fullName={fullName} />
-					</div>
+					{canReport && (
+						<div className="order-4 empty:hidden">
+							<MyServiceReports userId={userId} fullName={fullName} />
+						</div>
+					)}
 					<div className="order-6 empty:hidden">
 						<RequestPastoralVisit onChange={load} formOpen={requestFormOpen} onFormOpenChange={setRequestFormOpen} />
 					</div>
