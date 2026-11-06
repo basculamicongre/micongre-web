@@ -21,7 +21,7 @@ export function safeFileName(name: string): string {
 		.slice(0, 80) || "reporte";
 }
 
-const EXTENSION: Record<ExportFormat, string> = { docx: "docx", png: "png", xlsx: "xlsx" };
+const EXTENSION: Record<ExportFormat, string> = { docx: "docx", png: "png", xlsx: "xlsx", pdf: "pdf" };
 
 /** SVG → data URL PNG (con un canvas), para Word o para una imagen por hoja. */
 async function svgToPngDataUrl(svg: string, width: number, height: number, scale = 2): Promise<string> {
@@ -45,6 +45,22 @@ async function svgToPngDataUrl(svg: string, width: number, height: number, scale
 	} finally {
 		URL.revokeObjectURL(url);
 	}
+}
+
+type SvgBlock = Extract<ReportDoc["blocks"][number], { type: "svg" }>;
+
+const pngBlob = (dataUrl: string) => new Blob([Uint8Array.from(atob(dataUrl.split(",")[1] ?? ""), (c) => c.charCodeAt(0)) as BlobPart], { type: "image/png" });
+
+/** PDF: cada hoja dibujada (p. ej. el S-13) es una página; un reporte sin hojas va como una sola imagen en su página. */
+async function renderPdf(doc: ReportDoc): Promise<Blob> {
+	const { imagesToPdf } = await import("./pdf");
+	const sheets = doc.blocks.filter((b): b is SvgBlock => b.type === "svg" && !!b.standalone);
+	if (sheets.length > 0) {
+		const pngs = [];
+		for (const b of sheets) pngs.push(pngBlob(await svgToPngDataUrl(b.svg, b.width, b.height, 3)));
+		return imagesToPdf(pngs);
+	}
+	return imagesToPdf([await (await import("./image")).renderPng(doc)], { margin: 28 });
 }
 
 /** Una imagen por hoja (p. ej. cada asignación S-89): una sola se descarga como PNG; varias, juntas en un .zip. */
@@ -84,6 +100,7 @@ export async function downloadReport(source: ReportDoc, format: ExportFormat) {
 		);
 		blob = await (await import("./docx")).renderDocx({ ...doc, blocks });
 	} else if (format === "xlsx") blob = (await import("./xlsx")).renderXlsx(doc);
+	else if (format === "pdf") blob = await renderPdf(doc);
 	else if (doc.blocks.some((b) => b.type === "svg" && b.standalone)) {
 		await downloadSheetImages(doc);
 		return;

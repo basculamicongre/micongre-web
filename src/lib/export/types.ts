@@ -68,10 +68,11 @@ export interface ReportDoc {
 	footer?: string;
 }
 
-export type ExportFormat = "docx" | "png" | "xlsx";
+export type ExportFormat = "docx" | "png" | "xlsx" | "pdf";
 
 export const FORMAT_LABEL: Record<ExportFormat, string> = {
 	png: "Imagen (PNG)",
 	docx: "Word (DOCX)",
 	xlsx: "Excel (XLSX)",
+	pdf: "PDF",
 };
