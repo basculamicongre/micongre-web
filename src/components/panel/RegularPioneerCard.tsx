@@ -24,11 +24,11 @@ function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle
 	return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
 }
 
-function HoursGauge({ hours }: { hours: number }) {
+export function HoursGauge({ hours, goal = GOAL_HOURS }: { hours: number; goal?: number }) {
 	const cx = 100;
 	const cy = 100;
 	const r = 80;
-	const fraction = Math.min(hours / GOAL_HOURS, 1);
+	const fraction = Math.min(hours / goal, 1);
 	const progressAngle = 180 + fraction * 180;
 
 	return (
@@ -52,7 +52,7 @@ function HoursGauge({ hours }: { hours: number }) {
 					<g key={t}>
 						<line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="var(--ink-soft)" strokeWidth={2} />
 						<text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="fill-ink-soft text-[9px]">
-							{Math.round(t * GOAL_HOURS)}
+							{Math.round(t * goal)}
 						</text>
 					</g>
 				);
@@ -61,7 +61,7 @@ function HoursGauge({ hours }: { hours: number }) {
 				{Math.round(hours)}
 			</text>
 			<text x={cx} y={cy + 14} textAnchor="middle" className="fill-ink-soft text-[11px]">
-				de {GOAL_HOURS} horas
+				de {goal} horas
 			</text>
 		</svg>
 	);

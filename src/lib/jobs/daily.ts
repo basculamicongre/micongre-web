@@ -9,6 +9,7 @@ import { chunked } from "@/lib/cleaning/meetings";
 import { JwHubError, fetchHubCongregation, hubCongregationColumns, parseHubUrl } from "@/lib/jw/hub";
 import { addDays, issueCodeForWeek, parseISODate, toISODate, weekStartsOfMonth } from "@/lib/mwb/dates";
 import { runReportReminders, type ReportReminderResult } from "@/lib/reminders/reports";
+import { runStudyReminders } from "@/lib/pioneer/service";
 import { fetchMwbEpub } from "@/lib/mwb/fetchEpub";
 import { parseWeekPrograms } from "@/lib/mwb/parseProgram";
 import { programRows, ROWS_PER_INSERT } from "@/lib/mwb/programRows";
@@ -34,6 +35,7 @@ export interface DailyResult {
 	congregations: { checked: number; updated: number; failed: { name: string; reason: string }[] };
 	/** Recordatorio del informe del mes anterior (null si falló). */
 	reports: ReportReminderResult | null;
+	studies: { users: number; studies: number } | null;
 	/** Eventos aplicados a sus reuniones y avisos enviados (null si falló). */
 	events: { applied: number; notified: number } | null;
 	/** Publicaciones nuevas de JW.ORG agregadas al catálogo de literatura (null si falló). */
@@ -191,7 +193,7 @@ async function syncCongregations(db: Database, out: DailyResult["congregations"]
 /** Job diario: (1) deja armados los programas del mes en curso y del siguiente (entre semana y fin de semana) y
  * con sus puestos de tareas operativas según la plantilla, y (2) actualiza desde jw.org el día y la hora de las congregaciones de arreglos que tienen enlace. Cada paso es independiente:
  * si uno falla, el otro corre igual. `only` limita a un paso (pruebas). */
-export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports" | "preaching" | "events" | "literature"): Promise<DailyResult> {
+export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports" | "preaching" | "events" | "literature" | "studies"): Promise<DailyResult> {
 	const result: DailyResult = {
 		midweek: { created: 0, imported: 0, skeletons: 0, filled: 0, errors: [] },
 		weekend: { created: 0 },
@@ -199,6 +201,7 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 		preaching: null,
 		congregations: { checked: 0, updated: 0, failed: [] },
 		reports: null,
+		studies: null,
 		events: null,
 		literature: null,
 	};
@@ -285,6 +288,14 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 			result.reports = await runReportReminders(db, now);
 		} catch (error) {
 			console.error("daily_report_reminders_failed", error);
+		}
+	}
+	// Precursorado: aviso (push) de los estudios que cada precursor tiene mañana según el día anotado.
+	if (!only || only === "studies") {
+		try {
+			result.studies = await runStudyReminders(db, nicaraguaToday(now));
+		} catch (error) {
+			console.error("daily_study_reminders_failed", error);
 		}
 	}
 	return result;

@@ -508,6 +508,18 @@ export function assertCanAccessLiteratureModule(session: Session | null): assert
 	}
 }
 
+/** Módulo «Precursorado»: herramientas personales del precursor. Solo con el privilegio (lo reciben solos los precursores); ser
+ * admin no basta, porque son sus propias horas y estudios. */
+export function canUsePioneerTools(session: Session | null): boolean {
+	return !!session && session.privilegeCodes.includes(PRIVILEGE_CODES.PIONEER_TOOLS);
+}
+
+export function assertCanUsePioneerTools(session: Session | null): asserts session is Session {
+	if (!canUsePioneerTools(session)) {
+		throw new RbacError("El módulo de precursorado es solo para precursores.");
+	}
+}
+
 /** Módulo Territorios: admin, o el privilegio "Siervo de territorios" (que
  * reciben solos el superintendente de servicio y el siervo de territorios). */
 export function canAccessTerritoriesModule(session: Session | null): boolean {

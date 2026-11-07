@@ -6,6 +6,8 @@ import {
 	coVisitForWeek,
 	eventForMeeting,
 	isNoticeDue,
+	isUpcomingVisible,
+	shortText,
 	noticeText,
 	notifyOn,
 	validateEvent,
@@ -71,6 +73,25 @@ describe("eventos de la congregación", () => {
 		expect(noticeText(e)).toBe(
 			"Asamblea de circuito: el domingo 15 de noviembre.\nLa reunión de entre semana pasa al martes a las 7:30 p. m.\nLa reunión de fin de semana se cancela.\nLleven su Biblia.",
 		);
+	});
+
+	it("aviso con el mensaje recortado", () => {
+		const long = "Recuerden llevar su Biblia, su cancionero y algo de comer. ".repeat(5);
+		const text = noticeText({ ...base, message: long });
+		const last = text.split("\n").pop() ?? "";
+		expect(last.length).toBeLessThanOrEqual(141);
+		expect(last.endsWith("…")).toBe(true);
+		expect(shortText("Hola\n\nmundo")).toBe("Hola mundo");
+		expect(shortText("  ")).toBeNull();
+	});
+
+	it("próximos eventos: desde el día del aviso hasta el último día del evento", () => {
+		expect(isUpcomingVisible(base, "2026-10-30")).toBe(false);
+		expect(isUpcomingVisible(base, "2026-10-31")).toBe(true);
+		expect(isUpcomingVisible(base, "2026-11-15")).toBe(true);
+		expect(isUpcomingVisible(base, "2026-11-16")).toBe(false);
+		// Aunque ya se haya avisado, sigue visible.
+		expect(isUpcomingVisible({ ...base, notifyDaysBefore: 0 }, "2026-11-15")).toBe(true);
 	});
 
 	it("validación", () => {

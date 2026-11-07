@@ -23,7 +23,10 @@ import {
 	eventForMeeting,
 	eventName,
 	eventWeek,
+	eventDates,
 	isNoticeDue,
+	isUpcomingVisible,
+	meetingChange,
 	meetingWeek as meetingWeekOf,
 	noticeText,
 	validateEvent,
@@ -44,6 +47,38 @@ export async function listEvents(db: Database, fromDate?: string): Promise<Congr
 	return fromDate
 		? q.where(gte(congregationEvents.endDate, fromDate)).orderBy(asc(congregationEvents.startDate))
 		: q.orderBy(asc(congregationEvents.startDate));
+}
+
+export interface UpcomingEventView {
+	id: string;
+	kind: CongregationEvent["kind"];
+	title: string;
+	startDate: string;
+	endDate: string;
+	/** «del viernes 12 de junio al domingo 14 de junio». */
+	dates: string;
+	message: string | null;
+	/** Qué pasa con cada reunión («La reunión de entre semana se cancela.»), null sin cambios. */
+	midweek: string | null;
+	weekend: string | null;
+}
+
+/** «Próximos eventos» de Mi Panel: los que ya entraron en sus días de aviso y no han terminado, del más cercano al más lejano. */
+export async function upcomingEvents(db: Database, today: string): Promise<UpcomingEventView[]> {
+	const rows = await listEvents(db, today);
+	return rows
+		.filter((e) => isUpcomingVisible(e, today))
+		.map((e) => ({
+			id: e.id,
+			kind: e.kind,
+			title: eventName(e),
+			startDate: e.startDate,
+			endDate: e.endDate,
+			dates: eventDates(e),
+			message: e.message?.trim() || null,
+			midweek: meetingChange(e, "midweek"),
+			weekend: meetingChange(e, "weekend"),
+		}));
 }
 
 /** Eventos cuya semana cae entre estas fechas (AAAA-MM-DD): los que pueden afectar esas reuniones. */

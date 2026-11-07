@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import { serviceReports } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
+import { prefillFor } from "@/lib/pioneer/service";
 import { getPioneerAppointmentType } from "@/lib/rbac/eligibility";
 
 export async function GET(request: Request) {
@@ -30,8 +31,10 @@ export async function GET(request: Request) {
 			.limit(1);
 
 		const pioneerType = await getPioneerAppointmentType(db, session.userId);
+		// Precursorado: si aún no hay informe, las horas anotadas del mes y los estudios activos/progresivos para precargarlo.
+		const prefill = report ? null : await prefillFor(db, session.userId, year, month);
 
-		return NextResponse.json({ report: report ?? null, pioneerType, year, month });
+		return NextResponse.json({ report: report ?? null, pioneerType, year, month, prefill });
 	} catch (error) {
 		return errorResponse(error);
 	}
