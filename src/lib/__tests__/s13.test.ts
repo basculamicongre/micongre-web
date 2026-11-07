@@ -37,6 +37,8 @@ describe("S-13 registro de asignación de territorio", () => {
 		expect(records.map((r) => r.number)).toEqual(["2", "10"]);
 		expect(records[0].previousCompleted).toBe("2025-05-10");
 		expect(records[0].lastCompleted).toBe("2025-10-04");
+		expect(records[0].lastPreached).toBe("2025-10-11"); // la salida de antes del año no cuenta
+		expect(records[1].lastPreached).toBeNull();
 		// La línea de la asignación completada lleva esa fecha en «Última fecha en que se completó»; la siguiente, vacía.
 		expect(s13Lines(records, 4).map((l) => [l.number, l.lastCompleted])).toEqual([
 			["2", "2025-10-04"],

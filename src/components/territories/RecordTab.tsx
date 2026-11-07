@@ -41,7 +41,8 @@ export function RecordTab({ onParams }: { onParams?: (params: { serviceYear: str
 	if (error && !data) return <p className="text-sm text-red-600">No se pudo cargar el registro.</p>;
 	if (!data) return <PageLoader />;
 
-	const withAssignments = data.records.filter((r) => r.assignments.length > 0).length;
+	// Solo los territorios con registros en el año (igual que la descarga).
+	const records = data.records.filter((r) => r.assignments.length > 0);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -69,66 +70,63 @@ export function RecordTab({ onParams }: { onParams?: (params: { serviceYear: str
 				)}
 			</div>
 			<p className="text-xs text-ink-soft">
-				Año de servicio {serviceYearLabel(data.serviceYear)} (septiembre a agosto) · {data.records.length} territorios, {withAssignments} con
-				asignaciones en el año.
+				Año de servicio {serviceYearLabel(data.serviceYear)} (septiembre a agosto) · {records.length}{" "}
+				{records.length === 1 ? "territorio" : "territorios"} con asignaciones en el año.
 			</p>
 
-			{data.records.length === 0 && <p className="text-sm text-ink-soft">No hay territorios de este tipo.</p>}
+			{records.length === 0 && <p className="text-sm text-ink-soft">No hay registros en este año de servicio.</p>}
 			<div className="flex flex-col gap-3">
-				{data.records.map((r) => (
+				{records.map((r) => (
 					<section key={r.territoryId} className="rounded-[20px] bg-surface p-4">
 						<div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
 							<h3 className="text-sm font-semibold text-ink">
 								{r.number}
 								{r.name ? <span className="font-normal text-ink-soft"> · {r.name}</span> : null}
 							</h3>
-							<span className="text-xs text-ink-soft">
-								Última vez completado: {r.lastCompleted ? s13Date(r.lastCompleted) : "—"}
+							<span className="flex flex-wrap gap-x-3 text-xs tabular-nums text-ink-soft">
+								<span>Última vez predicado: {r.lastPreached ? s13Date(r.lastPreached) : "—"}</span>
+								<span>Última vez completado: {r.lastCompleted ? s13Date(r.lastCompleted) : "—"}</span>
 							</span>
 						</div>
-						{r.assignments.length === 0 ? (
-							<p className="mt-2 text-xs text-ink-soft">Sin asignaciones en este año de servicio.</p>
-						) : (
-							<ul className="mt-2 flex flex-col divide-y divide-border">
-								{r.assignments.map((a, i) => (
-									<li key={`${a.assignedOn}-${i}`} className="flex flex-col gap-1.5 py-2 text-sm">
-										<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
-											<span className="min-w-0 truncate text-ink">{a.assigneeName}</span>
-											<span className="text-xs tabular-nums text-ink-soft">
-												Asignado {s13Date(a.assignedOn)} ·{" "}
-												{a.resolvedOn && a.status !== "assigned" ? (
-													<span className={a.status === "completed" ? "text-accent" : ""}>
-														{a.status === "completed" ? "Completado" : "Devuelto"} {s13Date(a.resolvedOn)}
+						<ul className="mt-2 flex flex-col divide-y divide-border">
+							{r.assignments.map((a, i) => (
+								<li key={`${a.assignedOn}-${i}`} className="flex flex-col gap-1.5 py-2 text-sm">
+									<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+										<span className="min-w-0 truncate text-ink">{a.assigneeName}</span>
+										<span className="text-xs tabular-nums text-ink-soft">
+											Asignado {s13Date(a.assignedOn)} ·{" "}
+											{a.resolvedOn && a.status !== "assigned" ? (
+												<span className={a.status === "completed" ? "text-accent" : ""}>
+													{a.status === "completed" ? "Completado" : "Devuelto"} {s13Date(a.resolvedOn)}
+												</span>
+											) : (
+												<span className="text-warn">Vigente</span>
+											)}
+										</span>
+									</div>
+									{/* Cada salida de predicación es una casilla «Asignado a» del S-13. */}
+									{a.sessions.length === 0 ? (
+										<span className="text-xs text-ink-soft">Sin salidas de predicación registradas en el año.</span>
+									) : (
+										<div className="flex flex-wrap gap-1.5">
+											{a.sessions.map((d) => {
+												const done = a.status === "completed" && d === a.resolvedOn;
+												return (
+													<span
+														key={d}
+														title={done ? "Ese día se completó" : "Día en que se predicó"}
+														className={`rounded-full px-2.5 py-0.5 text-xs tabular-nums ${done ? "bg-accent/15 text-accent" : "bg-surface-alt text-ink-soft"}`}
+													>
+														{s13Date(d)}
+														{done ? " ✓" : ""}
 													</span>
-												) : (
-													<span className="text-warn">Vigente</span>
-												)}
-											</span>
+												);
+											})}
 										</div>
-										{/* Cada salida de predicación es una casilla «Asignado a» del S-13. */}
-										{a.sessions.length === 0 ? (
-											<span className="text-xs text-ink-soft">Sin salidas de predicación registradas en el año.</span>
-										) : (
-											<div className="flex flex-wrap gap-1.5">
-												{a.sessions.map((d) => {
-													const done = a.status === "completed" && d === a.resolvedOn;
-													return (
-														<span
-															key={d}
-															title={done ? "Ese día se completó" : "Día en que se predicó"}
-															className={`rounded-full px-2.5 py-0.5 text-xs tabular-nums ${done ? "bg-accent/15 text-accent" : "bg-surface-alt text-ink-soft"}`}
-														>
-															{s13Date(d)}
-															{done ? " ✓" : ""}
-														</span>
-													);
-												})}
-											</div>
-										)}
-									</li>
-								))}
-							</ul>
-						)}
+									)}
+								</li>
+							))}
+						</ul>
 					</section>
 				))}
 			</div>

@@ -57,6 +57,8 @@ export interface S13Record {
 	previousCompleted: string | null;
 	/** Última fecha en que se completó, contando las del año (lo que muestra la pantalla). */
 	lastCompleted: string | null;
+	/** Último día del año en que se salió a predicar ese territorio (una salida de predicación ya hecha). */
+	lastPreached: string | null;
 	assignments: S13AssignmentRow[];
 }
 
@@ -165,7 +167,8 @@ export function buildS13(territories: S13Territory[], assignments: S13Assignment
 					blocks: blocksOf(a.assigneeName, dates, completedOn),
 				};
 			});
-		return { territoryId: t.id, number: t.number, name: t.name, previousCompleted, lastCompleted, assignments: rows };
+		const lastPreached = territorySessions.reduce<string | null>((max, s) => (!max || s.date > max ? s.date : max), null);
+		return { territoryId: t.id, number: t.number, name: t.name, previousCompleted, lastCompleted, lastPreached, assignments: rows };
 	});
 }
 
