@@ -64,6 +64,12 @@ async function congregationInfo(db: Database): Promise<{ name: string; midweekSt
 	return { name: row?.name ?? "Mi congregación", midweekStart: toMin(parsed.midweek?.time), weekendStart: toMin(parsed.weekend?.time) };
 }
 
+/** «19:00» → minutos desde medianoche (null si no se entiende). */
+function toMinutes(t: string | null | undefined): number | null {
+	const m = t ? /^(\d{1,2}):(\d{2})/.exec(t.trim()) : null;
+	return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
 /** Minutos desde medianoche → «7:30» (reloj de 12 h, sin a. m./p. m., como en el formulario). */
 function clock(minutes: number | null): string {
 	if (minutes == null) return "0:00";
@@ -188,11 +194,14 @@ function midweekWeek(m: MidweekData, y0: number, startMin: number | null, titles
 	parts.push(text(M, y + 12, weekText, { size: 13, bold: true }));
 	native.push({ k: "week", text: weekText });
 	y += 22;
-	if (m.status !== "scheduled") {
-		parts.push(text(M, y + 12, "Reunión no programada normalmente esta semana.", { size: 11.5, italic: true }));
-		native.push({ k: "text", text: "Reunión no programada normalmente esta semana.", italic: true });
+	if (m.event || (m.status !== "scheduled" && m.status !== "adjusted_co_visit")) {
+		// Cancelada por un evento: en su lugar, el evento.
+		const note = m.event ? `${m.event.name}: no hay reunión esta semana.` : "Reunión no programada normalmente esta semana.";
+		parts.push(text(M, y + 12, note, { size: 11.5, italic: true }));
+		native.push({ k: "text", text: note, italic: true });
 		return { parts, height: y + 24 - y0, native };
 	}
+	startMin = toMinutes(m.startTime) ?? startMin;
 	native.push({ k: "kv", label: "Presidente:", value: m.chairman ?? UNASSIGNED });
 	if (m.hasAuxRoom) native.push({ k: "kv", label: "Consejero de la sala auxiliar:", value: "" });
 	parts.push(text(M, y + 12, "Presidente:", { size: 11.5, bold: true }), text(M + 74, y + 12, m.chairman ?? UNASSIGNED, { size: 11.5 }));
@@ -213,7 +222,8 @@ function midweekWeek(m: MidweekData, y0: number, startMin: number | null, titles
 		native.push(r.native);
 		y += r.height;
 	};
-	const withAux = m.hasAuxRoom;
+	// Semana de la visita del superintendente: sin sala auxiliar.
+	const withAux = m.hasAuxRoom && !m.coVisit;
 	const prayer = m.parts.find((p) => p.sectionType === "prayer");
 
 	add(row(y, { time: clock(t), title: songLabel(m.openingSong, titles) ?? "Canción", main: m.skipOpeningPrayer ? undefined : `Oración: ${m.openingPrayer ?? ""}`.trim(), bold: true }, withAux));
@@ -272,7 +282,12 @@ function midweekWeek(m: MidweekData, y0: number, startMin: number | null, titles
 		adv(slot.minutes + COUNSEL_MIN);
 	}
 	const cbs = m.parts.filter((p) => p.sectionType === "cbs");
-	if (cbs.length > 0) {
+	if (m.coVisit) {
+		// El discurso de servicio del superintendente reemplaza al Estudio bíblico de la congregación.
+		const talk = m.coVisit.midweekTalk;
+		add(row(y, { time: clock(t), title: `${talk.title || "Discurso de servicio"} (30 mins.)`, main: m.coVisit.overseerName }, withAux));
+		adv(30 + COUNSEL_MIN);
+	} else if (cbs.length > 0) {
 		const conductor = cbs.find((p) => /conductor/i.test(p.sectionTitle ?? "")) ?? cbs[0];
 		const reader = cbs.find((p) => /lector/i.test(p.sectionTitle ?? "")) ?? cbs[1];
 		const names = [conductor?.main ?? UNASSIGNED, reader?.main ?? UNASSIGNED].join(" / ");
@@ -286,7 +301,7 @@ function midweekWeek(m: MidweekData, y0: number, startMin: number | null, titles
 			y,
 			{
 				time: clock(t),
-				title: songLabel(m.closingSong, titles) ?? "Canción",
+				title: songLabel(m.coVisit?.midweekTalk.song ?? m.closingSong, titles) ?? "Canción",
 				main: `Oración: ${prayer?.main ?? ""}`.trim(),
 				bold: true,
 			},
@@ -363,10 +378,17 @@ function weekendBlock(m: WeekendData, y0: number, startMin: number | null, title
 	parts.push(text(M, y + 12, `${dayLabel(m.date).toUpperCase()} | REUNIÓN DEL FIN DE SEMANA`, { size: 13, bold: true }));
 	native.push({ k: "week", text: `${dayLabel(m.date).toUpperCase()} | REUNIÓN DEL FIN DE SEMANA` });
 	y += 22;
-	if (m.status !== "scheduled") {
-		parts.push(text(M, y + 12, "Reunión no programada normalmente.", { size: 11.5, italic: true }));
-		native.push({ k: "text", text: "Reunión no programada normalmente.", italic: true });
+	if (m.event || m.status !== "scheduled") {
+		const note = m.event ? `${m.event.name}: no hay reunión esta semana.` : "Reunión no programada normalmente.";
+		parts.push(text(M, y + 12, note, { size: 11.5, italic: true }));
+		native.push({ k: "text", text: note, italic: true });
 		return { parts, height: y + 24 - y0, native };
+	}
+	startMin = toMinutes(m.startTime) ?? startMin;
+	// Visita del superintendente: él da el discurso público (con su canción), La Atalaya dura 30 minutos y al final da su discurso.
+	const co = m.coVisit;
+	if (co) {
+		m = { ...m, talkTitle: co.publicTalk.title ?? m.talkTitle, speaker: co.overseerName, speakerCongregation: null, talkSong: co.publicTalk.song ?? m.talkSong };
 	}
 	native.push({ k: "kv", label: "Presidente:", value: m.chairman ?? UNASSIGNED });
 	parts.push(text(M, y + 12, "Presidente:", { size: 11.5, bold: true }), text(M + 74, y + 12, m.chairman ?? UNASSIGNED, { size: 11.5 }));
@@ -414,7 +436,7 @@ function weekendBlock(m: WeekendData, y0: number, startMin: number | null, title
 				y,
 				{
 					time: clock(t),
-					title: "Estudio de La Atalaya (60 mins.)",
+					title: `Estudio de La Atalaya (${co ? 30 : 60} mins.)`,
 					sub: m.watchtowerTitle ? [m.watchtowerTitle] : undefined,
 					main: `${m.conductor ?? UNASSIGNED} / ${m.reader ?? UNASSIGNED}`,
 					role: "Conductor/Lector",
@@ -422,7 +444,11 @@ function weekendBlock(m: WeekendData, y0: number, startMin: number | null, title
 				false,
 			),
 		);
-		adv(60);
+		adv(co ? 30 : 60);
+		if (co) {
+			add(row(y, { time: clock(t), title: `${co.finalTalk.title || "Discurso del superintendente de circuito"} (30 mins.)`, sub: [co.overseerName] }, false));
+			adv(30);
+		}
 	};
 
 	if (m.watchtowerFirst) {
@@ -440,7 +466,7 @@ function weekendBlock(m: WeekendData, y0: number, startMin: number | null, title
 		song(m.watchtowerSong);
 		adv(5);
 		watchtowerPart();
-		song(m.closingSong, m.prayer);
+		song(co?.finalTalk.song ?? m.closingSong, m.prayer);
 	}
 	return { parts, height: y - y0, native };
 }
@@ -552,7 +578,7 @@ async function buildS89({ db, session, params }: BuilderContext): Promise<Report
 	const meetings = await loadMidweek(db, range.from, range.to);
 	const slips: Slip[] = [];
 	for (const m of meetings) {
-		if (m.status !== "scheduled") continue;
+		if (m.event || (m.status !== "scheduled" && m.status !== "adjusted_co_visit")) continue;
 		for (const p of m.parts) {
 			if ((p.sectionType !== "bible_reading" && p.sectionType !== "student_assignment") || !p.main) continue;
 			slips.push({ name: p.main, assistant: p.assistant, date: m.date, number: p.partNumber, room: p.room });

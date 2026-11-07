@@ -51,7 +51,12 @@ export async function runRecurringPreaching(db: Database, today: string, { gener
 		await Promise.all(
 			chunked(headIds).map((part) =>
 				db
-					.select({ sessionId: preachingSessionTerritories.sessionId, territoryId: preachingSessionTerritories.territoryId, assignmentId: preachingSessionTerritories.assignmentId })
+					.select({
+						sessionId: preachingSessionTerritories.sessionId,
+						territoryId: preachingSessionTerritories.territoryId,
+						assignmentId: preachingSessionTerritories.assignmentId,
+						departureFid: preachingSessionTerritories.departureFid,
+					})
 					.from(preachingSessionTerritories)
 					.where(inArray(preachingSessionTerritories.sessionId, part)),
 			),
@@ -110,7 +115,15 @@ export async function runRecurringPreaching(db: Database, today: string, { gener
 			createdByUserId: head.createdByUserId,
 		});
 		for (const part of chunked(kept, 30)) {
-			await db.insert(preachingSessionTerritories).values(part.map((k) => ({ sessionId: id, territoryId: k.territoryId, assignmentId: k.assignmentId })));
+			// La siguiente salida de la serie usa el mismo punto de salida que esta.
+			await db.insert(preachingSessionTerritories).values(
+				part.map((k) => ({
+					sessionId: id,
+					territoryId: k.territoryId,
+					assignmentId: k.assignmentId,
+					departureFid: mine.find((r) => r.territoryId === k.territoryId)?.departureFid ?? null,
+				})),
+			);
 		}
 		const targets = await db
 			.select({ targetType: preachingSessionTargets.targetType, groupId: preachingSessionTargets.groupId, userId: preachingSessionTargets.userId })

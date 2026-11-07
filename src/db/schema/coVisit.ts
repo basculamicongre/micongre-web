@@ -25,6 +25,13 @@ export const coVisitSchedules = sqliteTable("co_visit_schedules", {
 	// por celda (nombre de familia), no un FK, sfg 15:2-3.
 	hospitalitySchedule: text("hospitality_schedule"),
 	notes: text("notes"),
+	// Los 3 discursos del superintendente esa semana (migrations/0076): título y número de canción.
+	midweekTalkTitle: text("midweek_talk_title"),
+	midweekTalkSong: integer("midweek_talk_song"),
+	publicTalkTitle: text("public_talk_title"),
+	publicTalkSong: integer("public_talk_song"),
+	finalTalkTitle: text("final_talk_title"),
+	finalTalkSong: integer("final_talk_song"),
 	createdByUserId: text("created_by_user_id")
 		.notNull()
 		.references(() => users.id),

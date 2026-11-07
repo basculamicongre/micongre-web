@@ -10,6 +10,8 @@ import { Modal } from "@/components/ui/Modal";
 import { SelectAllControls } from "@/components/shared/SelectAllControls";
 import { RecommendationsDecisionPanel } from "@/components/coVisit/RecommendationsDecisionPanel";
 import { formatShortDate } from "@/lib/dateFormat";
+import { SongSelect, useSongTitles } from "@/components/shared/SongSelect";
+import { songLabel } from "@/lib/songs/label";
 
 const OFFICE_LABELS: Record<string, string> = { ELDER: "Anciano", MINISTERIAL_SERVANT: "Siervo ministerial" };
 
@@ -33,6 +35,12 @@ interface Visit {
 	endDate: string;
 	midweekMeetingModifications: boolean;
 	notes: string | null;
+	midweekTalkTitle: string | null;
+	midweekTalkSong: number | null;
+	publicTalkTitle: string | null;
+	publicTalkSong: number | null;
+	finalTalkTitle: string | null;
+	finalTalkSong: number | null;
 	hospitalitySchedule: Record<string, { lunch?: string | null; dinner?: string | null }> | null;
 }
 
@@ -54,7 +62,20 @@ const EMPTY_VISIT_FORM = {
 	startDate: "",
 	endDate: "",
 	midweekMeetingModifications: false,
+	midweekTalkTitle: "",
+	midweekTalkSong: "",
+	publicTalkTitle: "",
+	publicTalkSong: "",
+	finalTalkTitle: "",
+	finalTalkSong: "",
 };
+
+/** Los 3 discursos del superintendente esa semana (título y canción). */
+const CO_TALKS = [
+	{ key: "midweekTalk", label: "Discurso de servicio (entre semana)", songLabel: "Canción final de la reunión de entre semana" },
+	{ key: "publicTalk", label: "Discurso público (fin de semana)", songLabel: "Canción antes del discurso público" },
+	{ key: "finalTalk", label: "Discurso final (fin de semana)", songLabel: "Canción final de la reunión de fin de semana" },
+] as const;
 
 const EMPTY_RECOMMENDATION_FORM = {
 	candidateUserId: "",
@@ -68,6 +89,7 @@ const EMPTY_RECOMMENDATION_FORM = {
 };
 
 export function CoVisitHub() {
+	const songTitles = useSongTitles();
 	const [visits, setVisits] = useState<Visit[]>([]);
 	const [publishers, setPublishers] = useState<PublisherOption[]>([]);
 	const [tab, setTab] = useState<"agenda" | "pioneers" | "s62">("agenda");
@@ -129,6 +151,12 @@ export function CoVisitHub() {
 			startDate: visit.startDate,
 			endDate: visit.endDate,
 			midweekMeetingModifications: visit.midweekMeetingModifications,
+			midweekTalkTitle: visit.midweekTalkTitle ?? "",
+			midweekTalkSong: visit.midweekTalkSong ? String(visit.midweekTalkSong) : "",
+			publicTalkTitle: visit.publicTalkTitle ?? "",
+			publicTalkSong: visit.publicTalkSong ? String(visit.publicTalkSong) : "",
+			finalTalkTitle: visit.finalTalkTitle ?? "",
+			finalTalkSong: visit.finalTalkSong ? String(visit.finalTalkSong) : "",
 		});
 		setVisitModalOpen(true);
 	}
@@ -147,7 +175,16 @@ export function CoVisitHub() {
 
 	async function handleSaveVisit() {
 		setVisitSaving(true);
-		const body = visitForm;
+		const song = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : null);
+		const body = {
+			...visitForm,
+			midweekTalkTitle: visitForm.midweekTalkTitle.trim() || null,
+			midweekTalkSong: song(visitForm.midweekTalkSong),
+			publicTalkTitle: visitForm.publicTalkTitle.trim() || null,
+			publicTalkSong: song(visitForm.publicTalkSong),
+			finalTalkTitle: visitForm.finalTalkTitle.trim() || null,
+			finalTalkSong: song(visitForm.finalTalkSong),
+		};
 		if (editingVisit) {
 			await fetch(`/api/co-visit/schedules/${editingVisit.id}`, {
 				method: "PATCH",
@@ -272,6 +309,16 @@ export function CoVisitHub() {
 											{formatShortDate(selectedVisit.startDate)} — {formatShortDate(selectedVisit.endDate)}
 										</div>
 										<div className="mt-1 text-[13px] text-ink-soft">Superintendente: {selectedVisit.circuitOverseerName}</div>
+										{CO_TALKS.some((t) => selectedVisit[`${t.key}Title`]) && (
+											<ul className="mt-2 space-y-0.5 text-[13px] text-ink">
+												{CO_TALKS.filter((t) => selectedVisit[`${t.key}Title`]).map((t) => (
+													<li key={t.key}>
+														<span className="text-ink-soft">{t.label}:</span> {selectedVisit[`${t.key}Title`]}
+														{selectedVisit[`${t.key}Song`] ? ` · ${songLabel(selectedVisit[`${t.key}Song`], songTitles) ?? ""}` : ""}
+													</li>
+												))}
+											</ul>
+										)}
 										{selectedVisit.midweekMeetingModifications && (
 											<div className="mt-2">
 												<Badge tone="warning">Modifica entre semana</Badge>
@@ -410,6 +457,25 @@ export function CoVisitHub() {
 						/>
 						Reemplaza el Estudio Bíblico por el discurso de servicio (S-38 párr. 21)
 					</label>
+					<div className="text-sm font-medium text-ink">Discursos del superintendente</div>
+					{CO_TALKS.map((t) => (
+						<div key={t.key} className="flex flex-col gap-2 rounded-2xl border border-border p-3">
+							<Input
+								label={t.label}
+								value={visitForm[`${t.key}Title`]}
+								onChange={(e) => setVisitForm((f) => ({ ...f, [`${t.key}Title`]: e.target.value }))}
+							/>
+							{/* El mismo selector de canciones de las reuniones (catálogo «Cantemos con gozo»). */}
+							<SongSelect
+								label={t.songLabel}
+								value={visitForm[`${t.key}Song`] ? Number(visitForm[`${t.key}Song`]) : null}
+								onChange={(n) => setVisitForm((f) => ({ ...f, [`${t.key}Song`]: n ? String(n) : "" }))}
+							/>
+						</div>
+					))}
+					<p className="text-[13px] text-ink-soft">
+						Al guardar, la visita aparece en Eventos: ahí se configura el aviso a la congregación y si alguna reunión cambia de día esa semana.
+					</p>
 					<Button onClick={handleSaveVisit} disabled={visitSaving || !visitForm.circuitOverseerName} className="mt-2">
 						{visitSaving ? "Guardando..." : "Guardar"}
 					</Button>

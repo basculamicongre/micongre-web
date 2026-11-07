@@ -11,6 +11,8 @@ const STATUS: Record<PreachingError, number> = {
 	territory_not_assigned: 400,
 	mixed_kinds: 400,
 	invalid_targets: 400,
+	invalid_departure: 400,
+	departure_locked: 409,
 };
 
 export function preachingErrorResponse(error: unknown): NextResponse {
@@ -24,6 +26,7 @@ export const sessionSchema = z.object({
 	note: z.string().trim().max(500).optional().nullable(),
 	recurring: z.boolean().optional().default(false),
 	territoryIds: z.array(z.string().min(1)).min(1),
+	departures: z.record(z.string(), z.string().min(1).max(64).nullable()).optional(),
 	targets: z.object({
 		congregation: z.boolean().default(false),
 		groupIds: z.array(z.string().min(1)).default([]),
@@ -32,5 +35,5 @@ export const sessionSchema = z.object({
 });
 
 export function toInput(parsed: z.infer<typeof sessionSchema>): SessionInput {
-	return { date: parsed.date, time: parsed.time, note: parsed.note?.trim() || null, recurring: parsed.recurring, territoryIds: parsed.territoryIds, targets: parsed.targets };
+	return { date: parsed.date, time: parsed.time, note: parsed.note?.trim() || null, recurring: parsed.recurring, territoryIds: parsed.territoryIds, departures: parsed.departures, targets: parsed.targets };
 }

@@ -8,6 +8,7 @@ import { assertCanAccessWeekendModule, assertEligibleForAssignment } from "@/lib
 import { PRIVILEGE_CODES, PRIVILEGE_IDS } from "@/lib/rbac/roles";
 import { updateWeekendMeetingSchema } from "@/lib/validation/weekend";
 import { songTitleMap } from "@/lib/songs/catalog";
+import { meetingContext } from "@/lib/events/service";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
@@ -74,6 +75,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 				watchtowerReaderName: nameOf(meeting.watchtowerReaderId),
 				prayerName: nameOf(meeting.prayerUserId),
 			},
+			// Evento que cancela o mueve esta reunión, visita del superintendente de esa semana y la fecha y hora reales.
+			...(await meetingContext(db, meeting.meetingDate, "weekend")),
 		});
 	} catch (error) {
 		return errorResponse(error);

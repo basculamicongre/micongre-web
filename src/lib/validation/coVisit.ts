@@ -15,6 +15,13 @@ export const createVisitSchema = z.object({
 	midweekMeetingModifications: z.boolean().default(false),
 	hospitalitySchedule: hospitalityScheduleSchema.optional().nullable(),
 	notes: z.string().optional().nullable(),
+	// Los 3 discursos del superintendente esa semana: título y número de canción (Cantemos con gozo).
+	midweekTalkTitle: z.string().trim().max(200).nullish(),
+	midweekTalkSong: z.number().int().min(1).max(200).nullish(),
+	publicTalkTitle: z.string().trim().max(200).nullish(),
+	publicTalkSong: z.number().int().min(1).max(200).nullish(),
+	finalTalkTitle: z.string().trim().max(200).nullish(),
+	finalTalkSong: z.number().int().min(1).max(200).nullish(),
 });
 
 export const updateVisitSchema = createVisitSchema.partial();

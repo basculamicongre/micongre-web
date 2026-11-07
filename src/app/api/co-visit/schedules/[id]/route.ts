@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import { coVisitSchedules } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
+import { syncCoVisitEvent } from "@/lib/events/service";
 import { assertCanAccessCoVisitScheduleModule } from "@/lib/rbac/guards";
 import { updateVisitSchema } from "@/lib/validation/coVisit";
 
@@ -29,6 +30,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 					: {}),
 			})
 			.where(eq(coVisitSchedules.id, id));
+		const [visit] = await db
+			.select({ id: coVisitSchedules.id, startDate: coVisitSchedules.startDate, endDate: coVisitSchedules.endDate })
+			.from(coVisitSchedules)
+			.where(eq(coVisitSchedules.id, id))
+			.limit(1);
+		if (visit) await syncCoVisitEvent(db, visit, session.userId);
 
 		return NextResponse.json({ ok: true });
 	} catch (error) {

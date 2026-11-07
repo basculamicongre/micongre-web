@@ -15,6 +15,7 @@ import {
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
 import { addDays, mondayOf, parseISODate, toISODate } from "@/lib/mwb/dates";
+import { territoryMapKindsFor } from "@/lib/territories/mapAccess";
 import { isOver, nicaraguaNow, selectUpcoming } from "@/lib/panel/upcoming";
 import { time12 } from "@/lib/export/builders/meetingDates";
 import { getUserAssignments } from "@/lib/queries/panel";
@@ -75,6 +76,14 @@ export async function GET() {
 					time: o.time,
 				});
 			}
+		}
+
+		// Botón de mapa en las salidas de predicación: el primer territorio dibujado que la persona puede ver.
+		const mapKinds: string[] = await territoryMapKindsFor(db, session);
+		for (const a of assignments) {
+			const pick = a.mapCandidates?.find((c) => mapKinds.includes(c.kind));
+			if (pick) a.mapTerritoryId = pick.id;
+			delete a.mapCandidates;
 		}
 
 		// Solo los próximos 30 días (una semana de limpieza profunda en curso cuenta).

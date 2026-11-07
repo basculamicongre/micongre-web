@@ -47,6 +47,8 @@ export const preachingSessionTerritories = sqliteTable(
 			.references(() => territories.id, { onDelete: "cascade" }),
 		// Asignación vigente del territorio (el capitán) al programar la salida; sin FK porque el historial se puede borrar.
 		assignmentId: text("assignment_id"),
+		// Punto de salida elegido (`fid` de un punto con `departure` del dibujo del territorio); null = el predeterminado.
+		departureFid: text("departure_fid"),
 	},
 	(t) => [primaryKey({ columns: [t.sessionId, t.territoryId] }), index("preaching_session_territories_territory_idx").on(t.territoryId)],
 );

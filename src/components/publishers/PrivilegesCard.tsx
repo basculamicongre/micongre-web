@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { IconButton, List, ListRow } from "@/components/ui/Layout";
 import { Modal } from "@/components/ui/Modal";
 import { SelectAllControls } from "@/components/shared/SelectAllControls";
+import { groupPrivileges } from "@/lib/rbac/privilegeGroups";
+import { matchesSearch } from "@/lib/textSearch";
 
 interface GrantedPrivilege {
 	id: string;
@@ -19,15 +21,9 @@ interface GrantedPrivilege {
 
 interface PrivilegeOption {
 	id: string;
+	code: string;
 	name: string;
-	category: "meeting" | "operational" | "administrative";
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-	meeting: "Reunión",
-	operational: "Operativo",
-	administrative: "Administrativo",
-};
 
 export function PrivilegesCard({
 	publisherId,
@@ -51,10 +47,12 @@ export function PrivilegesCard({
 	const [checked, setChecked] = useState<Set<string>>(new Set());
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [query, setQuery] = useState("");
 
 	const activeGranted = grantedPrivileges.filter((p) => p.active);
 
 	useEffect(() => {
+		if (modalOpen) setQuery("");
 		if (!modalOpen || readOnly) return;
 		setChecked(new Set(activeGranted.map((p) => p.privilegeId)));
 		fetch("/api/privileges")
@@ -66,15 +64,16 @@ export function PrivilegesCard({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [modalOpen]);
 
-	const grouped = useMemo(() => {
-		const byCategory = new Map<string, PrivilegeOption[]>();
-		for (const p of catalog) {
-			const list = byCategory.get(p.category) ?? [];
-			list.push(p);
-			byCategory.set(p.category, list);
-		}
-		return byCategory;
-	}, [catalog]);
+	// Agrupados y en el orden de lib/rbac/privilegeGroups.ts; la búsqueda también busca en el nombre del grupo.
+	const grouped = useMemo(
+		() =>
+			groupPrivileges(catalog)
+				.map((g) => ({ ...g, items: g.items.filter((p) => matchesSearch(`${g.label} ${p.name}`, query)) }))
+				.filter((g) => g.items.length > 0),
+		[catalog, query],
+	);
+
+	const shownIds = grouped.flatMap((g) => g.items.map((p) => p.id));
 
 	function toggle(id: string) {
 		setChecked((prev) => {
@@ -124,15 +123,25 @@ export function PrivilegesCard({
 		</Modal>
 	) : (
 		<Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Gestionar privilegios">
+<input
+				type="search"
+				placeholder="Buscar privilegio"
+				value={query}
+				onChange={(e) => setQuery(e.target.value)}
+				aria-label="Buscar privilegio"
+				className="mb-2 min-h-11 w-full rounded-full border border-border bg-surface px-4 text-base text-ink focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
+			/>
 			<SelectAllControls
-				onSelectAll={() => setChecked(new Set(catalog.map((p) => p.id)))}
-				onClearAll={() => setChecked(new Set())}
+				// Con una búsqueda, solo afectan a los privilegios que se ven.
+				onSelectAll={() => setChecked((prev) => new Set([...prev, ...shownIds]))}
+				onClearAll={() => setChecked((prev) => new Set([...prev].filter((id) => !shownIds.includes(id))))}
 			/>
 			<div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto">
-				{[...grouped.entries()].map(([category, items]) => (
-					<div key={category}>
+				{catalog.length > 0 && grouped.length === 0 && <p className="px-2 py-4 text-sm text-ink-soft">Ningún privilegio coincide.</p>}
+				{grouped.map(({ label, items }) => (
+					<div key={label}>
 						<p className="mb-1 px-1 text-[13px] font-semibold uppercase tracking-wider text-ink-soft">
-							{CATEGORY_LABELS[category] ?? category}
+							{label}
 						</p>
 						<div className="flex flex-col">
 							{items.map((p) => (

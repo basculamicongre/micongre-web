@@ -18,6 +18,11 @@ const feature = z.object({
 		kind: z.literal("text").optional(),
 		text: z.string().trim().min(1).max(200).optional(),
 		emoji: z.string().trim().min(1).max(16).optional(),
+		label: z.string().trim().min(1).max(60).optional(),
+		departure: z.boolean().optional(),
+		address: z.string().trim().min(1).max(200).optional(),
+		departureDefault: z.boolean().optional(),
+		size: z.enum(["normal", "medium", "large"]).optional(),
 	}),
 });
 

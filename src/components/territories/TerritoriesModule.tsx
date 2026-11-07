@@ -11,6 +11,7 @@ import { Modal } from "@/components/ui/Modal";
 import { TERRITORY_KIND_LABEL, type TerritoryKind } from "@/lib/territories/geo";
 import { AllTerritoriesMap } from "./AllTerritoriesMap";
 import { AssignmentsTab } from "./AssignmentsTab";
+import { RecordTab } from "./RecordTab";
 import { TerritoryMapEditor } from "./TerritoryMapEditor";
 import { TerritoryMapViewer } from "./TerritoryMapViewer";
 import { PageLoader } from "@/components/ui/Spinner";
@@ -170,15 +171,18 @@ function TerritoriesTab({ hallAddress }: { hallAddress: string | null }) {
 	);
 }
 
-type Tab = "assignments" | "territories";
+type Tab = "assignments" | "territories" | "record";
 
 const TABS: { value: Tab; label: string }[] = [
 	{ value: "assignments", label: "Asignaciones" },
 	{ value: "territories", label: "Territorios" },
+	{ value: "record", label: "Registro" },
 ];
 
 export function TerritoriesModule({ hallAddress }: { hallAddress: string | null }) {
 	const [tab, setTab] = useState<Tab>("assignments");
+	// Año de servicio y tipo que muestra «Registro», para su botón de descarga en el encabezado.
+	const [recordParams, setRecordParams] = useState<Record<string, string> | null>(null);
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -196,11 +200,19 @@ export function TerritoriesModule({ hallAddress }: { hallAddress: string | null 
 							label="Descargar tarjetas de territorio"
 							title="Tarjetas de territorio"
 						/>
+					) : tab === "record" && recordParams ? (
+						<ExportButton
+							kind="s13"
+							params={recordParams}
+							formats={["png", "pdf"]}
+							label="Descargar S-13"
+							title="Registro de asignación de territorio (S-13)"
+						/>
 					) : undefined
 				}
 			/>
 			<Segmented value={tab} onChange={setTab} options={TABS} label="Sección" />
-			{tab === "assignments" ? <AssignmentsTab /> : <TerritoriesTab hallAddress={hallAddress} />}
+			{tab === "assignments" ? <AssignmentsTab /> : tab === "record" ? <RecordTab onParams={setRecordParams} /> : <TerritoriesTab hallAddress={hallAddress} />}
 		</div>
 	);
 }
@@ -240,7 +252,7 @@ function TerritoryFormModal({
 		const body = (await response.json().catch(() => null)) as { error?: string } | null;
 		setError(
 			body?.error === "map_not_allowed"
-				? "Ese tipo solo admite puntos y textos: quita primero las líneas y polígonos del mapa."
+				? "El mapa tiene elementos que ese tipo no admite."
 				: (ERROR_TEXT[body?.error ?? ""] ?? "No se pudo guardar."),
 		);
 	}
@@ -259,15 +271,18 @@ function TerritoryFormModal({
 					<option value="public_preaching">{TERRITORY_KIND_LABEL.public_preaching}</option>
 				</Select>
 				<label className="flex flex-col gap-1 text-sm">
-					<span className="font-medium text-ink">Lugar de reunión (opcional)</span>
+					<span className="font-medium text-ink">Indicaciones (opcional)</span>
 					<textarea
-						placeholder="p. ej. Casa de la familia López, frente al parque"
+						placeholder="p. ej. Tocar el portón verde; se puede parquear atrás"
 						value={meetingPlace}
 						onChange={(e) => setMeetingPlace(e.target.value)}
 						maxLength={500}
 						rows={3}
 						className="rounded-2xl border border-border bg-surface px-4 py-3 text-base text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:text-sm"
 					/>
+					<span className="text-xs text-ink-soft">
+						Los puntos de salida (con nombre y dirección) se marcan en el mapa del territorio; las indicaciones acompañan al punto de cada salida.
+					</span>
 				</label>
 				<Input label="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
 				{error && <p className="text-sm text-warn">{error}</p>}

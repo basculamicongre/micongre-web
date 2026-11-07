@@ -1,6 +1,8 @@
 import {
 	Bell,
+	BookOpen,
 	Building2,
+	CalendarClock,
 	CalendarDays,
 	ClipboardList,
 	Compass,
@@ -102,6 +104,12 @@ export const NAV_GROUPS: NavGroup[] = [
 			},
 			TERRITORIES_ITEM,
 			PREACHING_ITEM,
+			{
+				href: "/literature",
+				label: "Literatura",
+				icon: BookOpen,
+				requiresAnyPrivilege: [PRIVILEGE_CODES.LITERATURE_ACCESS],
+			},
 		],
 	},
 	{
@@ -114,6 +122,12 @@ export const NAV_GROUPS: NavGroup[] = [
 				href: "/congregation",
 				label: "Congregación",
 				icon: Building2,
+				requiresAnyPrivilege: [PRIVILEGE_CODES.CONGREGATION_ACCESS],
+			},
+			{
+				href: "/events",
+				label: "Eventos",
+				icon: CalendarClock,
 				requiresAnyPrivilege: [PRIVILEGE_CODES.CONGREGATION_ACCESS],
 			},
 			{

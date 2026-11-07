@@ -58,6 +58,16 @@ export function TerritoryMapEditor({
 
 	async function save() {
 		if (!latest.current) return;
+		// Cada punto de salida necesita nombre y dirección: es lo que ven los publicadores en el aviso y en el calendario.
+		const incomplete = latest.current.features.filter((f) => f.properties.departure && (!f.properties.label?.trim() || !f.properties.address?.trim()));
+		if (incomplete.length > 0) {
+			setError(
+				incomplete.length === 1
+					? "Un punto de salida no tiene nombre o dirección. Selecciónalo y complétalo."
+					: `${incomplete.length} puntos de salida no tienen nombre o dirección. Selecciónalos y complétalos.`,
+			);
+			return;
+		}
 		setSaving(true);
 		setError(null);
 		const mapData = latest.current.features.length > 0 ? latest.current : null;
@@ -71,7 +81,7 @@ export function TerritoryMapEditor({
 			const body = (await response.json().catch(() => null)) as { error?: string } | null;
 			setError(
 				body?.error === "map_not_allowed"
-					? "Este tipo de territorio solo admite puntos y textos."
+					? "El mapa tiene elementos que este tipo de territorio no admite."
 					: "No se pudo guardar el mapa. Si dibujaste muchísimo, simplifica un poco e intenta de nuevo.",
 			);
 			return;

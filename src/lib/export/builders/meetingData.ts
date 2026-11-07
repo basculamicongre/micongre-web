@@ -1,4 +1,10 @@
 import { and, asc, eq, gte, inArray, lte, ne, notInArray, sql } from "drizzle-orm";
+import { coVisitSchedules } from "@/db/schema";
+import { readMeetingSchedules } from "@/lib/assignments/stats";
+import { effectiveMeetingTime } from "@/lib/attendance/summary";
+import { coVisitForWeek, eventForMeeting, eventName } from "@/lib/events/rules";
+import { eventsBetween, type CoVisitInfo } from "@/lib/events/service";
+import { mondayOf, parseISODate, toISODate } from "@/lib/mwb/dates";
 import { loadOperationalCatalog, loadTemplate, slotDisplayName, sortByTemplate } from "@/lib/operational/template";
 import type { Database } from "@/db/client";
 import {
@@ -78,6 +84,12 @@ export interface MidweekData {
 	studyLesson: string | null;
 	hasAuxRoom: boolean;
 	parts: MidweekPart[];
+	/** Evento que cancela la reunión esa semana (en su lugar se muestra el evento). */
+	event: { name: string; message: string | null } | null;
+	/** Visita del superintendente esa semana (cambia el programa). */
+	coVisit: CoVisitInfo | null;
+	/** Hora real («19:00») de esa semana: la de un evento que la movió o la de siempre. */
+	startTime: string | null;
 }
 
 export async function loadMidweek(db: Database, from: string, to: string): Promise<MidweekData[]> {
@@ -112,11 +124,13 @@ export async function loadMidweek(db: Database, from: string, to: string): Promi
 		...rows.flatMap((r) => [r.mainAssigneeId, r.assistantAssigneeId]),
 	]);
 
+	const week = await weekContext(db, from, to);
 	return meetings.map((m) => ({
 		id: m.id,
 		date: m.meetingDate,
 		weekLabel: m.weekLabel,
 		status: m.status,
+		...week(m.meetingDate, "midweek"),
 		chairman: m.chairmanUserId ? (names.get(m.chairmanUserId) ?? null) : null,
 		openingSong: m.openingSongNumber,
 		closingSong: m.closingSongNumber,
@@ -143,6 +157,12 @@ export interface WeekendData {
 	id: string;
 	date: string;
 	status: string;
+	/** Evento que cancela la reunión esa semana. */
+	event: { name: string; message: string | null } | null;
+	/** Visita del superintendente esa semana (cambia el programa). */
+	coVisit: CoVisitInfo | null;
+	/** Hora real («09:30») de esa semana. */
+	startTime: string | null;
 	chairman: string | null;
 	speaker: string | null;
 	speakerCongregation: string | null;
@@ -195,10 +215,12 @@ export async function loadWeekend(db: Database, from: string, to: string): Promi
 		.orderBy(asc(weekendMeetings.meetingDate));
 	const names = await nameMap(db, meetings.flatMap((m) => [m.chairmanUserId, m.conductorId, m.readerId, m.prayerId]));
 	const get = (id: string | null) => (id ? (names.get(id) ?? null) : null);
+	const week = await weekContext(db, from, to);
 	return meetings.map((m) => ({
 		id: m.id,
 		date: m.date,
 		status: m.status,
+		...week(m.date, "weekend"),
 		chairman: get(m.chairmanUserId),
 		speaker: m.speakerName,
 		speakerCongregation: m.speakerCongregation,
@@ -255,4 +277,32 @@ export async function loadOperational(
 	return template
 		.filter((s) => names.has(s.privilegeId))
 		.map((s) => ({ privilegeId: s.privilegeId, task: names.get(s.privilegeId) as string, person: null, position: s.position }));
+}
+
+/**
+ * Por reunión: el evento que la cancela, la visita del superintendente de esa semana y la hora real (un evento puede moverla). Carga los
+ * eventos del rango una sola vez.
+ */
+async function weekContext(db: Database, from: string, to: string) {
+	const [events, schedules] = await Promise.all([eventsBetween(db, toISODate(mondayOf(parseISODate(from))), to), readMeetingSchedules(db)]);
+	const visitIds = events.map((e) => e.coVisitId).filter((id): id is string => !!id);
+	const visits = visitIds.length ? await db.select().from(coVisitSchedules).where(inArray(coVisitSchedules.id, visitIds)) : [];
+	return (storedDate: string, type: "midweek" | "weekend") => {
+		const ev = eventForMeeting(events, storedDate, type);
+		const cancels = ev && (type === "midweek" ? ev.midweekAction : ev.weekendAction) === "cancel";
+		const visitEvent = coVisitForWeek(events, storedDate);
+		const v = visitEvent ? visits.find((x) => x.id === visitEvent.coVisitId) : undefined;
+		return {
+			event: cancels && ev ? { name: eventName(ev), message: ev.message } : null,
+			coVisit: v
+				? {
+						overseerName: v.circuitOverseerName,
+						midweekTalk: { title: v.midweekTalkTitle, song: v.midweekTalkSong },
+						publicTalk: { title: v.publicTalkTitle, song: v.publicTalkSong },
+						finalTalk: { title: v.finalTalkTitle, song: v.finalTalkSong },
+					}
+				: null,
+			startTime: effectiveMeetingTime(storedDate, type, schedules) ?? null,
+		};
+	};
 }

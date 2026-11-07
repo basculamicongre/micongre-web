@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import { coVisitSchedules } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
+import { syncCoVisitEvent } from "@/lib/events/service";
 import { assertCanAccessCoVisitScheduleModule } from "@/lib/rbac/guards";
 import { createVisitSchema } from "@/lib/validation/coVisit";
 
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
 				createdByUserId: session.userId,
 			})
 			.returning({ id: coVisitSchedules.id });
+		// La visita tiene su evento en «Eventos» (aviso a la congregación y, si se configura ahí, el cambio de día de las reuniones).
+		await syncCoVisitEvent(db, { id: created.id, startDate: rest.startDate, endDate: rest.endDate }, session.userId);
 
 		return NextResponse.json({ id: created.id }, { status: 201 });
 	} catch (error) {

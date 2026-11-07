@@ -4,11 +4,13 @@ import type { ReportDoc } from "./types";
 import { buildGroups } from "./builders/groups";
 import { buildInformes } from "./builders/informes";
 import { buildInformesGrupos } from "./builders/informesGrupos";
+import { buildLiterature } from "./builders/literature";
 import { buildMeetings } from "./builders/meetings";
 import { buildOperational } from "./builders/operational";
 import { buildOutgoing } from "./builders/outgoing";
 import { buildPeople } from "./builders/people";
 import { buildPrograms } from "./builders/programs";
+import { buildS13 } from "./builders/s13";
 import { buildS21 } from "./builders/s21";
 import { buildTerritories } from "./builders/territories";
 
@@ -40,4 +42,9 @@ export const REPORT_BUILDERS: Record<string, ReportBuilder> = {
 	households: buildGroups,
 	"territory-assignment": buildTerritories,
 	"territories-cards": buildTerritories,
+	// Registro de asignación de territorio (S-13), formato oficial.
+	s13: buildS13,
+	// Literatura: lista de una solicitud (?id=) o un corte de inventario (?id=).
+	"literature-offer": buildLiterature,
+	"literature-inventory": buildLiterature,
 };

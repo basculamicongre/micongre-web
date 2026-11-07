@@ -6,6 +6,11 @@ const DAY_OFFSET: Record<string, number> = { lunes: 0, martes: 1, miercoles: 2, 
 export interface MeetingSchedules {
 	midweek?: { day?: string; time?: string } | null;
 	weekend?: { day?: string; time?: string } | null;
+	/**
+	 * Cambios de una sola semana hechos por un evento (Eventos → «mover la reunión»), por lunes de la semana (AAAA-MM-DD). Los llena
+	 * `readMeetingSchedules`; así todo lo que calcula la fecha real de una reunión (Mi Panel, recordatorios, S-140…) respeta el cambio.
+	 */
+	overrides?: Record<string, { midweek?: { day?: string | null; time?: string | null }; weekend?: { day?: string | null; time?: string | null } }>;
 }
 
 export interface AttendanceRow {
@@ -42,10 +47,19 @@ function offsetOf(day: string | undefined | null, fallback: number): number {
  * guardada de entre semana es el lunes y la de fin de semana el sábado, que pueden caer en otro mes que el día de reunión). Si el
  * día no se pudo leer, se queda con la fecha guardada. */
 export function effectiveMeetingDate(stored: string, type: "midweek" | "weekend", schedules: MeetingSchedules | null): string {
-	const day = type === "midweek" ? schedules?.midweek?.day : schedules?.weekend?.day;
 	const storedDate = parseISODate(stored);
+	const monday = mondayOf(storedDate);
+	const moved = schedules?.overrides?.[toISODate(monday)]?.[type]?.day;
+	const day = moved || (type === "midweek" ? schedules?.midweek?.day : schedules?.weekend?.day);
 	const fallback = (storedDate.getUTCDay() + 6) % 7; // posición de la fecha guardada dentro de su semana
-	return toISODate(addDays(mondayOf(storedDate), offsetOf(day, fallback)));
+	return toISODate(addDays(monday, offsetOf(day, fallback)));
+}
+
+/** Hora (texto de Congregación, p. ej. «19:00») en que se celebra la reunión de esa semana: la del evento que la movió o la de siempre. */
+export function effectiveMeetingTime(stored: string, type: "midweek" | "weekend", schedules: MeetingSchedules | null): string | undefined {
+	const week = toISODate(mondayOf(parseISODate(stored)));
+	const moved = schedules?.overrides?.[week]?.[type]?.time;
+	return (moved || (type === "midweek" ? schedules?.midweek?.time : schedules?.weekend?.time)) ?? undefined;
 }
 
 /** Promedios por mes y por tipo de reunión: cada reunión con asistencia registrada cuenta en el mes en que se celebra. */
