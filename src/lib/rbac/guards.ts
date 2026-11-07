@@ -497,6 +497,17 @@ export function assertCanAccessPreachingModule(session: Session | null): asserts
 	}
 }
 
+/** Módulo Literatura: admin o «Administrar → Literatura» (lo recibe solo el siervo de literatura; a los auxiliares se otorga a mano). */
+export function canAccessLiteratureModule(session: Session | null): boolean {
+	return !!session && (session.role === "admin" || session.privilegeCodes.includes(PRIVILEGE_CODES.LITERATURE_ACCESS));
+}
+
+export function assertCanAccessLiteratureModule(session: Session | null): asserts session is Session {
+	if (!canAccessLiteratureModule(session)) {
+		throw new RbacError("No tienes acceso al módulo de literatura.");
+	}
+}
+
 /** Módulo Territorios: admin, o el privilegio "Siervo de territorios" (que
  * reciben solos el superintendente de servicio y el siervo de territorios). */
 export function canAccessTerritoriesModule(session: Session | null): boolean {

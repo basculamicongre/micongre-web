@@ -13,6 +13,7 @@ export const PRIVILEGE_GROUPS: readonly PrivilegeGroup[] = [
 			"accounts_admin",
 			"operational_access",
 			"cleaning_admin",
+			"literature_access",
 			"pastoral_care_access",
 			"co_visit_schedule_access",
 			"congregation_access",

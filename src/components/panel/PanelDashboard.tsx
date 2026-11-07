@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/Layout";
 import type { PanelAssignment } from "@/lib/queries/panel";
 import { AssignedPastoralVisits } from "./AssignedPastoralVisits";
+import { LiteratureOffers } from "./LiteratureOffers";
 import { MyAssignments } from "./MyAssignments";
 import { MyGroup } from "./MyGroup";
 import { MyNotifications } from "./MyNotifications";
@@ -106,6 +107,9 @@ export function PanelDashboard({ userId, fullName, canReport = true }: { userId:
 				<div className="contents lg:col-span-2 lg:min-w-0 lg:flex lg:flex-col lg:gap-6">
 					<div className="order-2 empty:hidden">
 						<MyNotifications />
+					</div>
+					<div className="order-2 empty:hidden">
+						<LiteratureOffers />
 					</div>
 					<div className="order-5 empty:hidden">
 						<RegularPioneerCard />

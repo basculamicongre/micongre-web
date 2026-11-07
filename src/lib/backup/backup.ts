@@ -23,7 +23,7 @@ const CATALOG_TABLES = new Set(["privileges", "appointment_privilege_rules"]);
 const SESSION_TABLES = new Set(["refresh_tokens", "account_activation_tokens"]);
 // Catálogo de bosquejos de discursos: se respalda (puede tener ediciones), pero
 // "borrar todo" lo conserva — se siembra en una migración y no es de la congregación.
-const KEEP_ON_WIPE = new Set([...CATALOG_TABLES, "public_talk_outlines"]);
+const KEEP_ON_WIPE = new Set([...CATALOG_TABLES, "public_talk_outlines", "literature_publications"]);
 
 const NAME_RE = /^[a-z_][a-z0-9_]*$/;
 // Tope por sentencia INSERT: D1 limita cada consulta a 100 KB.

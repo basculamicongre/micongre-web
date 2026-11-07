@@ -1,5 +1,6 @@
 import {
 	Bell,
+	BookOpen,
 	Building2,
 	CalendarClock,
 	CalendarDays,
@@ -103,6 +104,12 @@ export const NAV_GROUPS: NavGroup[] = [
 			},
 			TERRITORIES_ITEM,
 			PREACHING_ITEM,
+			{
+				href: "/literature",
+				label: "Literatura",
+				icon: BookOpen,
+				requiresAnyPrivilege: [PRIVILEGE_CODES.LITERATURE_ACCESS],
+			},
 		],
 	},
 	{

@@ -44,6 +44,7 @@ export const PRIVILEGE_CODES = {
 	PUBLIC_PREACHING_ASSIGNABLE: "public_preaching_assignable",
 	SHEPHERDING_VISITOR: "shepherding_visitor",
 	MEETING_TIMER: "meeting_timer",
+	LITERATURE_ACCESS: "literature_access",
 } as const;
 
 export const FIELD_SERVICE_GROUP_APPOINTMENTS = [
@@ -105,6 +106,7 @@ export const PRIVILEGE_IDS = {
 	PREACHING_ADMIN: "priv_preaching_admin",
 	SHEPHERDING_VISITOR: "priv_shepherding_visitor",
 	MEETING_TIMER: "priv_meeting_timer",
+	LITERATURE_ACCESS: "priv_literature_access",
 } as const;
 
 /** Privilegios con category='operational' que NO son tareas de una reunión: el de acceso al módulo y los de predicación/territorios.
