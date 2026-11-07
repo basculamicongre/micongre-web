@@ -4,6 +4,7 @@ import {
 	Building2,
 	CalendarClock,
 	CalendarDays,
+	CalendarRange,
 	ClipboardList,
 	Compass,
 	FileBadge,
@@ -81,6 +82,8 @@ export const NAV_GROUPS: NavGroup[] = [
 	{
 		label: "Reuniones y servicio",
 		items: [
+			// Para toda la congregación (cada quien ve lo suyo).
+			{ href: "/calendar", label: "Calendario", icon: CalendarRange },
 			{
 				href: "/meetings/midweek",
 				label: "Entre semana",
