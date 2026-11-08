@@ -19,15 +19,18 @@ interface Props {
 		bibleStudiesCount: number | null;
 		comments?: string | null;
 	};
+	/** Informe nuevo de un precursor: horas anotadas en Precursorado y estudios activos/progresivos. */
+	prefill?: { hours: number; bibleStudies: number } | null;
 	onSaved: () => void;
 }
 
-export function S4Form({ userId, fullName, periodYear, periodMonth, pioneerType, initial, onSaved }: Props) {
+export function S4Form({ userId, fullName, periodYear, periodMonth, pioneerType, initial, prefill, onSaved }: Props) {
 	const [participatedInMinistry, setParticipatedInMinistry] = useState(initial?.participatedInMinistry ?? true);
 	const isAuxiliaryPioneer = pioneerType === "auxiliary_pioneer";
 	const showHours = pioneerType !== null;
 	const showProjectHours = pioneerType === "regular_pioneer";
-	const [hours, setHours] = useState(initial?.hours?.toString() ?? "");
+	const fromPioneer = !initial && !!prefill && (prefill.hours > 0 || prefill.bibleStudies > 0);
+	const [hours, setHours] = useState(initial?.hours?.toString() ?? (prefill?.hours ? String(prefill.hours) : ""));
 	const [projectHours, setProjectHours] = useState(initial?.projectHours?.toString() ?? "");
 	const projectMax = maxProjectHours(Number(hours) || 0);
 
@@ -37,7 +40,7 @@ export function S4Form({ userId, fullName, periodYear, periodMonth, pioneerType,
 		const clamped = clampProjectHours(Number(value) || 0, Number(projectHours) || 0);
 		if (String(clamped ?? "") !== projectHours && Number(projectHours) > 0) setProjectHours(clamped?.toString() ?? "");
 	}
-	const [bibleStudiesCount, setBibleStudiesCount] = useState(initial?.bibleStudiesCount?.toString() ?? "0");
+	const [bibleStudiesCount, setBibleStudiesCount] = useState(initial?.bibleStudiesCount?.toString() ?? String(prefill?.bibleStudies ?? 0));
 	const [comments, setComments] = useState(initial?.comments ?? "");
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -75,6 +78,11 @@ export function S4Form({ userId, fullName, periodYear, periodMonth, pioneerType,
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col gap-3">
 			<p className="text-sm text-ink-soft">Informe de {fullName}</p>
+			{fromPioneer && (
+				<p className="rounded-2xl bg-accent-soft px-4 py-2 text-[13px] text-ink">
+					Precargado desde Precursorado: las horas anotadas este mes y tus estudios activos y progresivos. Revísalo antes de guardar.
+				</p>
+			)}
 			<label className="flex min-h-11 items-center gap-3 text-sm text-ink">
 				<input
 					className="h-5 w-5 accent-[var(--accent)]"

@@ -140,10 +140,28 @@ export function meetingChange(e: EventLike, type: MeetingType): string | null {
 	return null;
 }
 
-/** Texto del aviso a la congregación: qué, cuándo, qué pasa con las reuniones y el mensaje opcional. */
+/** Largo máximo del mensaje del evento dentro del aviso (el texto completo se ve en «Próximos eventos» de Mi Panel). */
+export const NOTICE_MESSAGE_MAX = 140;
+
+/** Recorta un texto a `max` caracteres sin partir palabras, en una sola línea, con «…». */
+export function shortText(text: string | null | undefined, max = NOTICE_MESSAGE_MAX): string | null {
+	const clean = text?.replace(/\s+/g, " ").trim();
+	if (!clean) return null;
+	if (clean.length <= max) return clean;
+	const cut = clean.slice(0, max);
+	const space = cut.lastIndexOf(" ");
+	return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s.,;:]+$/, "")}…`;
+}
+
+/** Texto del aviso a la congregación: qué, cuándo, qué pasa con las reuniones y el mensaje opcional (recortado). */
 export function noticeText(e: EventLike): string {
-	const parts = [`${eventName(e)}: ${eventDates(e)}.`, meetingChange(e, "midweek"), meetingChange(e, "weekend"), e.message?.trim() || null];
+	const parts = [`${eventName(e)}: ${eventDates(e)}.`, meetingChange(e, "midweek"), meetingChange(e, "weekend"), shortText(e.message)];
 	return parts.filter(Boolean).join("\n");
+}
+
+/** ¿Se muestra en «Próximos eventos» de Mi Panel? Desde el día del aviso (`notifyDaysBefore` días antes) hasta que termina. */
+export function isUpcomingVisible(e: Pick<EventLike, "startDate" | "endDate" | "notifyDaysBefore">, today: string): boolean {
+	return today >= notifyOn(e) && today <= e.endDate;
 }
 
 /** Problema al guardar, o null. */

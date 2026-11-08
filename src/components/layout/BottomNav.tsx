@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Grid2x2, Home, type LucideIcon } from "lucide-react";
+import { Bell, CalendarDays, Grid2x2, Home, type LucideIcon } from "lucide-react";
 import { visibleGroups } from "./navItems";
 
 interface Tab {
@@ -31,8 +31,11 @@ export function BottomNav({
 				.flatMap((g) => g.items)
 				.find((i) => i.href === shortcut)
 		: undefined;
+	// Igual que en la app: tocar «Panel» estando en Mi Panel abre el Calendario, y desde el Calendario vuelve a Mi Panel.
+	const onPanel = pathname === "/panel";
+	const onCalendar = pathname === "/calendar" || pathname.startsWith("/calendar/");
 	const tabs: Tab[] = [
-		{ key: "panel", href: "/panel", label: "Panel", icon: Home },
+		{ key: "panel", href: onPanel ? "/calendar" : "/panel", label: onCalendar ? "Calendario" : "Panel", icon: onCalendar ? CalendarDays : Home },
 		...(shortcutItem ? [{ key: "shortcut", href: shortcutItem.href, label: shortcutItem.label, icon: shortcutItem.icon }] : []),
 		{ key: "notices", href: "/notifications", label: "Avisos", icon: Bell },
 		{ key: "more", href: "/more", label: "Más", icon: Grid2x2 },
@@ -40,7 +43,7 @@ export function BottomNav({
 
 	// «Más» agrupa todo lo que no es una de las otras pestañas (incluido el perfil).
 	const direct = tabs.filter((t) => t.key !== "more");
-	const activeKey = direct.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.key ?? "more";
+	const activeKey = onPanel || onCalendar ? "panel" : (direct.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.key ?? "more");
 
 	return (
 		<nav

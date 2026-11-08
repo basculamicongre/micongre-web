@@ -4,6 +4,7 @@ import {
 	Building2,
 	CalendarClock,
 	CalendarDays,
+	CalendarRange,
 	ClipboardList,
 	Compass,
 	FileBadge,
@@ -15,6 +16,7 @@ import {
 	Mic2,
 	ShieldAlert,
 	Sparkles,
+	Timer,
 	Users,
 	UsersRound,
 	type LucideIcon,
@@ -27,6 +29,8 @@ export interface NavItem {
 	icon: LucideIcon;
 	/** Visible para admin o para quien tenga alguno de estos privilegios; sin esto, para todos. */
 	requiresAnyPrivilege?: string[];
+	/** Con esto, ser admin no basta: hace falta uno de los privilegios (módulos personales, como Precursorado). */
+	privilegeOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -78,6 +82,8 @@ export const NAV_GROUPS: NavGroup[] = [
 	{
 		label: "Reuniones y servicio",
 		items: [
+			// Para toda la congregación (cada quien ve lo suyo).
+			{ href: "/calendar", label: "Calendario", icon: CalendarRange },
 			{
 				href: "/meetings/midweek",
 				label: "Entre semana",
@@ -104,6 +110,13 @@ export const NAV_GROUPS: NavGroup[] = [
 			},
 			TERRITORIES_ITEM,
 			PREACHING_ITEM,
+			{
+				href: "/pioneer",
+				label: "Precursorado",
+				icon: Timer,
+				requiresAnyPrivilege: [PRIVILEGE_CODES.PIONEER_TOOLS],
+				privilegeOnly: true,
+			},
 			{
 				href: "/literature",
 				label: "Literatura",
@@ -159,7 +172,7 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export function canSee(item: NavItem, role: "admin" | "regular", privilegeCodes: string[]): boolean {
-	return !item.requiresAnyPrivilege || role === "admin" || item.requiresAnyPrivilege.some((c) => privilegeCodes.includes(c));
+	return !item.requiresAnyPrivilege || (role === "admin" && !item.privilegeOnly) || item.requiresAnyPrivilege.some((c) => privilegeCodes.includes(c));
 }
 
 export function visibleGroups(role: "admin" | "regular", privilegeCodes: string[]): NavGroup[] {

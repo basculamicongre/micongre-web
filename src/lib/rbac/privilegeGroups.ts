@@ -34,7 +34,7 @@ export const PRIVILEGE_GROUPS: readonly PrivilegeGroup[] = [
 	{ label: "Superintendente de circuito", codes: ["co_visit_access"] },
 	{ label: "Administrar por grupo", codes: ["households_group", "reports_group", "publishers_group"] },
 	{ label: "Notificaciones", codes: ["notify_group", "notify_publishers", "notify_congregation"] },
-	{ label: "Predicación", codes: ["territory_assignable", "public_preaching_assignable"] },
+	{ label: "Predicación", codes: ["territory_assignable", "public_preaching_assignable", "pioneer_tools"] },
 	{ label: "Reuniones", codes: ["meeting_timer", "watchtower_conductor", "cbs_conductor", "public_talk_speaker", "congregation_prayer"] },
 	{ label: "Fin de semana", codes: ["weekend_chairman", "watchtower_reader"] },
 	{

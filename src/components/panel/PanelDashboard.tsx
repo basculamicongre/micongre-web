@@ -13,6 +13,7 @@ import { MyServiceReports } from "./MyServiceReports";
 import { PanelActions } from "./PanelActions";
 import { RegularPioneerCard } from "./RegularPioneerCard";
 import { RequestPastoralVisit } from "./RequestPastoralVisit";
+import { UpcomingEvents } from "./UpcomingEvents";
 import { PageLoader } from "@/components/ui/Spinner";
 import { PanelLinks, type PanelLink } from "./PanelLinks";
 
@@ -105,6 +106,9 @@ export function PanelDashboard({ userId, fullName, canReport = true }: { userId:
 				</div>
 
 				<div className="contents lg:col-span-2 lg:min-w-0 lg:flex lg:flex-col lg:gap-6">
+					<div className="order-2 empty:hidden">
+						<UpcomingEvents />
+					</div>
 					<div className="order-2 empty:hidden">
 						<MyNotifications />
 					</div>

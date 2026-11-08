@@ -18,11 +18,18 @@ interface Report {
 
 type PioneerType = "auxiliary_pioneer" | "regular_pioneer" | null;
 
+interface Prefill {
+	hours: number;
+	bibleStudies: number;
+}
+
 interface MonthEntry {
 	year: number;
 	month: number;
 	label: string;
 	report: Report | null;
+	/** Precursorado: horas anotadas del mes y estudios activos, para precargar un informe nuevo. */
+	prefill: Prefill | null;
 }
 
 // Mes actual y los 2 anteriores, del más reciente al más antiguo. No se limita al
@@ -53,9 +60,9 @@ export function MyServiceReports({ userId, fullName }: { userId: string; fullNam
 		const results = await Promise.all(
 			months.map(async (m) => {
 				const response = await fetch(`/api/reports/s4/mine?year=${m.year}&month=${m.month}`);
-				if (!response.ok) return { ...m, report: null, pioneerType: null as PioneerType };
-				const body = (await response.json()) as { report: Report | null; pioneerType: PioneerType };
-				return { ...m, report: body.report, pioneerType: body.pioneerType };
+				if (!response.ok) return { ...m, report: null, prefill: null, pioneerType: null as PioneerType };
+				const body = (await response.json()) as { report: Report | null; pioneerType: PioneerType; prefill?: Prefill | null };
+				return { ...m, report: body.report, prefill: body.prefill ?? null, pioneerType: body.pioneerType };
 			}),
 		);
 		setEntries(results.map(({ pioneerType: _pioneerType, ...entry }) => entry));
@@ -117,6 +124,7 @@ export function MyServiceReports({ userId, fullName }: { userId: string; fullNam
 											periodMonth={entry.month}
 											pioneerType={pioneerType}
 											initial={entry.report ?? undefined}
+											prefill={entry.report ? null : entry.prefill}
 											onSaved={() => {
 												setEditingKey(null);
 												load();
