@@ -128,3 +128,20 @@ export const literatureOfferResponses = sqliteTable(
 	},
 	(t) => [primaryKey({ columns: [t.offerId, t.userId] })],
 );
+
+/** Solicitudes que la persona quitó de su Mi Panel (lo que respondió se conserva en `literature_offer_responses`). */
+export const literatureOfferDismissals = sqliteTable(
+	"literature_offer_dismissals",
+	{
+		offerId: text("offer_id")
+			.notNull()
+			.references(() => literatureOffers.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		dismissedAt: integer("dismissed_at", { mode: "timestamp" })
+			.notNull()
+			.default(sql`(unixepoch())`),
+	},
+	(t) => [primaryKey({ columns: [t.offerId, t.userId] })],
+);

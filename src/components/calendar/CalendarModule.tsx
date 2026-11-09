@@ -42,6 +42,7 @@ interface PreachingSession {
 interface MonthData {
 	items: CalendarItem[];
 	preaching: PreachingSession[];
+	canManage?: boolean;
 }
 
 /** Una entrada del día, ya sea de `items` o una salida de predicación. */
@@ -68,15 +69,21 @@ export function CalendarModule() {
 	});
 	const [data, setData] = useState<MonthData | null>(null);
 	const [open, setOpen] = useState<string | null>(null);
+	// Quien administra la predicación puede ver todas las salidas (por omisión, solo las que le tocan).
+	const [all, setAll] = useState(false);
+	const [canManage, setCanManage] = useState(false);
 	const today = iso(new Date());
 
 	useEffect(() => {
 		setData(null);
-		fetch(`/api/calendar?month=${monthKey(month)}`)
+		fetch(`/api/calendar?month=${monthKey(month)}${all ? "&all=1" : ""}`)
 			.then((r) => (r.ok ? (r.json() as Promise<MonthData>) : { items: [], preaching: [] }))
-			.then(setData)
+			.then((d) => {
+				setData(d);
+				if (d.canManage) setCanManage(true);
+			})
 			.catch(() => setData({ items: [], preaching: [] }));
-	}, [month]);
+	}, [month, all]);
 
 	// Entradas por día (lo que dura varios días sale en cada uno).
 	const byDay = useMemo(() => {
@@ -123,6 +130,24 @@ export function CalendarModule() {
 				)}
 				<IconButton label="Mes siguiente" icon={ChevronRight} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} />
 			</div>
+			{canManage && (
+				<div className="flex gap-1 self-start rounded-full bg-surface-alt p-1 text-[13px] font-semibold">
+					{[
+						{ value: false, label: "Solo las mías" },
+						{ value: true, label: "Todas" },
+					].map((o) => (
+						<button
+							key={o.label}
+							type="button"
+							aria-pressed={all === o.value}
+							onClick={() => setAll(o.value)}
+							className={`rounded-full px-3 py-1 transition-colors ${all === o.value ? "bg-surface text-ink shadow-sm" : "text-ink-soft hover:text-ink"}`}
+						>
+							{o.label}
+						</button>
+					))}
+				</div>
+			)}
 
 			{!data ? (
 				<InlineLoader />

@@ -3,7 +3,8 @@
 import { SelectBox } from "@/components/ui/Input";
 import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { ArrowDown, ArrowUp, Plus, Search, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Search, UserPen, Users } from "lucide-react";
+import { RequestDataDialog } from "@/components/dataRequests/RequestDataDialog";
 import { Badge } from "@/components/ui/Card";
 import { ExportButton } from "@/components/export/ExportButton";
 import { Avatar, Chip, ChipGroup, Fab, IconButton, List, PageHeader } from "@/components/ui/Layout";
@@ -105,6 +106,7 @@ const COLUMNS_AFTER_PROGRESS: Column[] = [
 
 export function PublisherTable({
 	isAdmin,
+	canRequestData = false,
 	canEditGroup,
 	canManageAppointments,
 	canAdministerAccounts,
@@ -113,6 +115,8 @@ export function PublisherTable({
 	canDelete,
 }: {
 	isAdmin: boolean;
+	/** Botón «Solicitar datos» (admin o «Solicitar actualización de datos»). */
+	canRequestData?: boolean;
 	// Admin o "Todos los publicadores": puede reasignar el grupo de servicio.
 	canEditGroup: boolean;
 	canManageAppointments: boolean;
@@ -262,6 +266,7 @@ export function PublisherTable({
 		return sortDir === "asc" ? sorted : sorted.reverse();
 	}, [filteredRows, sortKey, sortDir, groupName]);
 
+	const [requestDataOpen, setRequestDataOpen] = useState(false);
 	const columns = useMemo(
 		() => [
 			...COLUMNS_BEFORE_PROGRESS,
@@ -277,7 +282,19 @@ export function PublisherTable({
 				title="Personas"
 				subtitle={`${publisherRows.length} personas en la congregación`}
 				actions={
-					canManageAppointments || canAdministerAccounts ? (
+					canManageAppointments || canAdministerAccounts || canRequestData ? (
+						<div className="flex flex-wrap gap-2">
+							{canRequestData && (
+								<button
+									type="button"
+									onClick={() => setRequestDataOpen(true)}
+									className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-alt"
+								>
+									<UserPen size={18} />
+									Solicitar datos
+								</button>
+							)}
+							{(canManageAppointments || canAdministerAccounts) && (
 						<Link
 							href="/publishers/bulk"
 							className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-alt"
@@ -285,9 +302,12 @@ export function PublisherTable({
 							<Users size={18} />
 							Asignación masiva
 						</Link>
+							)}
+						</div>
 					) : undefined
 				}
 			/>
+			{canRequestData && <RequestDataDialog open={requestDataOpen} onClose={() => setRequestDataOpen(false)} />}
 
 			<div className="flex h-12 items-center gap-3 rounded-full bg-surface px-4 text-ink-soft focus-within:ring-1 focus-within:ring-accent">
 				<Search size={20} className="shrink-0" />

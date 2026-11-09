@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, MessageSquare, Phone } from "lucide-react";
+import { ChevronDown, MessageSquare, Phone, UserPen } from "lucide-react";
+import { RequestDataDialog } from "@/components/dataRequests/RequestDataDialog";
 import { Avatar, List, SectionLabel } from "@/components/ui/Layout";
 import { AppointmentBadges } from "@/components/publishers/AppointmentBadges";
-import { GroupBadge } from "@/components/serviceGroups/GroupBadge";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { contactLinks, type ContactLinks } from "@/lib/contact/phone";
 import { WhatsAppGlyph } from "./PanelLinks";
@@ -14,6 +14,8 @@ interface Member {
 	fullName: string;
 	phone?: string | null;
 	activeAppointmentTypes: string[];
+	/** En `people`: superintendente o auxiliar del grupo. */
+	role?: "overseer" | "assistant" | null;
 }
 
 interface Group {
@@ -22,6 +24,8 @@ interface Group {
 	overseerName: string | null;
 	assistantName: string | null;
 	members: Member[];
+	/** Todo el grupo: superintendente, auxiliar y los demás por nombre (servidores nuevos). */
+	people?: Member[];
 }
 
 const CONTACT_BUTTON = "flex size-11 items-center justify-center rounded-full text-white transition-opacity hover:opacity-90";
@@ -54,7 +58,12 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
 	const content = (
 		<>
 			<Avatar name={member.fullName} size={36} />
-			<span className="min-w-0 flex-1 text-sm text-ink">{member.fullName}</span>
+			<span className="min-w-0 flex-1">
+				<span className="block text-sm text-ink">{member.fullName}</span>
+				{member.role && (
+					<span className="block text-xs font-semibold text-accent">{member.role === "overseer" ? "Superintendente" : "Auxiliar"}</span>
+				)}
+			</span>
 			<AppointmentBadges activeAppointmentTypes={member.activeAppointmentTypes} />
 		</>
 	);
@@ -76,43 +85,40 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
 	);
 }
 
-export function MyGroup({ group }: { group: Group | null }) {
-	const [expanded, setExpanded] = useState(false);
+export function MyGroup({ group, canRequestData = false }: { group: Group | null; canRequestData?: boolean }) {
+	const [requestOpen, setRequestOpen] = useState(false);
 	const [openMember, setOpenMember] = useState<string | null>(null);
 
 	return (
 		<section>
-			<SectionLabel>Mi grupo de servicio</SectionLabel>
+			<SectionLabel
+				right={
+					canRequestData ? (
+						<button type="button" onClick={() => setRequestOpen(true)} className="inline-flex items-center gap-1 font-semibold normal-case tracking-normal text-accent hover:underline">
+							<UserPen size={14} /> Solicitar datos
+						</button>
+					) : undefined
+				}
+			>
+				Mi grupo de servicio
+			</SectionLabel>
+			{canRequestData && <RequestDataDialog open={requestOpen} onClose={() => setRequestOpen(false)} />}
 			{!group ? (
 				<List>
 					<p className="px-4 py-5 text-sm text-ink-soft">Todavía no tienes un grupo asignado.</p>
 				</List>
 			) : (
 				<List>
-					<button
-						type="button"
-						onClick={() => setExpanded((v) => !v)}
-						aria-expanded={expanded}
-						className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-alt"
-					>
-						<div className="min-w-0 flex-1">
-							<GroupBadge name={group.name} color={group.color} />
-							<p className="mt-2 text-[13px] text-ink-soft">
-								<span className="font-medium text-ink">Superintendente:</span> {group.overseerName ?? "—"}
-							</p>
-							<p className="text-[13px] text-ink-soft">
-								<span className="font-medium text-ink">Auxiliar:</span> {group.assistantName ?? "—"}
-							</p>
-						</div>
-						<ChevronDown size={18} className={`shrink-0 text-ink-soft transition-transform ${expanded ? "rotate-180" : ""}`} />
-					</button>
-					{expanded && (
-						<p className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-ink-soft">Compañeros de grupo</p>
-					)}
-					{expanded &&
-						group.members.map((m) => (
-							<MemberRow key={m.id} member={m} open={openMember === m.id} onToggle={() => setOpenMember((id) => (id === m.id ? null : m.id))} />
-						))}
+					{/* El grupo en grande, de lado a lado, con su color. */}
+					<div className="px-4 py-4" style={group.color ? { backgroundColor: `${group.color}1f` } : undefined}>
+						<p className="font-display text-2xl font-medium leading-tight" style={{ color: group.color ?? undefined }}>
+							{group.name}
+						</p>
+					</div>
+					{/* Para contactar a cualquiera: primero el superintendente, luego el auxiliar y luego los demás por nombre. */}
+					{(group.people ?? group.members).map((m) => (
+						<MemberRow key={m.id} member={m} open={openMember === m.id} onToggle={() => setOpenMember((id) => (id === m.id ? null : m.id))} />
+					))}
 				</List>
 			)}
 		</section>

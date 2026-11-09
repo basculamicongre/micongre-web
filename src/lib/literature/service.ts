@@ -5,6 +5,7 @@ import {
 	literatureInventories,
 	literatureInventoryItems,
 	literatureLocations,
+	literatureOfferDismissals,
 	literatureOfferResponses,
 	literatureOffers,
 	literaturePublications,
@@ -358,7 +359,11 @@ export async function sendOffer(db: Database, id: string): Promise<{ sent: numbe
 	const offer = await getOffer(db, id);
 	if (offer.endsOn < nicaraguaToday()) throw new LiteratureFailure("expired", 409);
 	await db.update(literatureOffers).set({ notifiedAt: new Date(), updatedAt: new Date() }).where(eq(literatureOffers.id, id));
-	const to = offer.summary.pending.map((p) => p.userId);
+	// Reenviar avisa a quienes no han respondido, menos a quien ya la quitó de su Mi Panel.
+	const dismissed = new Set(
+		(await db.select({ userId: literatureOfferDismissals.userId }).from(literatureOfferDismissals).where(eq(literatureOfferDismissals.offerId, id))).map((d) => d.userId),
+	);
+	const to = offer.summary.pending.map((p) => p.userId).filter((u) => !dismissed.has(u));
 	const forGroup = offer.audience === "group_overseers" ? " para tu grupo" : "";
 	await notifyUsers(db, to, {
 		title: "Literatura",
@@ -395,7 +400,17 @@ export async function myOpenOffers(db: Database, userId: string): Promise<MyOffe
 	if (rows.length === 0) return [];
 	const audiences = [...new Set(rows.map((r) => r.offer.audience))];
 	const recipients = new Map(await Promise.all(audiences.map(async (a) => [a, (await offerRecipients(db, a)).find((p) => p.userId === userId)] as const)));
-	const mine = rows.filter((r) => recipients.get(r.offer.audience));
+	const candidates = rows.filter((r) => recipients.get(r.offer.audience));
+	if (candidates.length === 0) return [];
+	const dismissed = new Set(
+		(
+			await db
+				.select({ offerId: literatureOfferDismissals.offerId })
+				.from(literatureOfferDismissals)
+				.where(and(eq(literatureOfferDismissals.userId, userId), inArray(literatureOfferDismissals.offerId, candidates.map((r) => r.offer.id))))
+		).map((d) => d.offerId),
+	);
+	const mine = candidates.filter((r) => !dismissed.has(r.offer.id));
 	if (mine.length === 0) return [];
 	const responses = await db
 		.select()
@@ -432,4 +447,13 @@ export async function respondToOffer(db: Database, offerId: string, userId: stri
 			target: [literatureOfferResponses.offerId, literatureOfferResponses.userId],
 			set: { answer, quantity: qty, respondedAt: new Date() },
 		});
+}
+
+/** Quita la solicitud del Mi Panel de esta persona (haya respondido o no; lo respondido se conserva y ya no se le reenvía). */
+export async function dismissOffer(db: Database, offerId: string, userId: string): Promise<void> {
+	const [offer] = await db.select({ audience: literatureOffers.audience }).from(literatureOffers).where(eq(literatureOffers.id, offerId)).limit(1);
+	if (!offer) throw new LiteratureFailure("not_found", 404);
+	const recipients = await offerRecipients(db, offer.audience);
+	if (!recipients.some((r) => r.userId === userId)) throw new LiteratureFailure("not_recipient", 403);
+	await db.insert(literatureOfferDismissals).values({ offerId, userId }).onConflictDoNothing();
 }

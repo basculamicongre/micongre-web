@@ -8,20 +8,22 @@ import { canChangeDeparture, listSessionsForCalendar } from "@/lib/preaching/ser
 import { canAccessPreachingModule } from "@/lib/rbac/guards";
 import { territoryMapKindsFor } from "@/lib/territories/mapAccess";
 
-// Módulo «Calendario» (web y app; ?month=AAAA-MM): cualquier persona con sesión. `preaching` es lo mismo que el calendario de predicación
-// (quien administra el módulo ve todas las salidas; los demás, las que les tocan) y `items`, todo lo demás con fecha: eventos de la
+// Módulo «Calendario» (web y app; ?month=AAAA-MM): cualquier persona con sesión. `preaching`: las salidas que le tocan a la persona
+// (toda la congregación, su grupo, ella misma o un territorio del que es capitán); quien administra la predicación puede pedir todas
+// con `&all=1` (el calendario es personal; el módulo Predicación sigue mostrando todas). Y `items`, todo lo demás con fecha: eventos de la
 // congregación, reuniones y las asignaciones de la persona (partes, acomodadores, limpieza, discursos fuera, pastoreos).
 export async function GET(request: Request) {
 	try {
 		const session = await getSession();
 		if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-		const month = new URL(request.url).searchParams.get("month") ?? new Date().toISOString().slice(0, 7);
+		const params = new URL(request.url).searchParams;
+		const month = params.get("month") ?? new Date().toISOString().slice(0, 7);
 		if (!/^\d{4}-\d{2}$/.test(month)) return NextResponse.json({ error: "invalid_month" }, { status: 400 });
 		const canManage = canAccessPreachingModule(session);
 		const db = getDb();
 		const now = nicaraguaNow();
 		const [sessions, items, mapKinds] = await Promise.all([
-			listSessionsForCalendar(db, session.userId, { month, all: canManage }),
+			listSessionsForCalendar(db, session.userId, { month, all: canManage && params.get("all") === "1" }),
 			calendarItems(db, session.userId, month),
 			territoryMapKindsFor(db, session),
 		]);
