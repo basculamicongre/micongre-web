@@ -25,6 +25,7 @@ export const ERROR_TEXT: Record<string, string> = {
 	duplicate_location: "Ya hay una ubicación con ese nombre.",
 	in_use: "No se puede borrar porque ya se usa en un inventario, una solicitud o un pedido.",
 	jw_publication: "Las publicaciones de JW.ORG no se borran.",
+	jw_code: "El código de una publicación de JW.ORG no se cambia.",
 	invalid_publication: "Elige una publicación del catálogo.",
 	invalid_location: "Elige una ubicación.",
 	invalid_person: "Elige quién hizo el pedido.",

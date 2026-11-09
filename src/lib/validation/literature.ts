@@ -11,6 +11,8 @@ export const publicationSchema = z.object({
 	category: z.enum(LITERATURE_CATEGORIES),
 });
 
+export const publicationUpdateSchema = publicationSchema.partial();
+
 export const locationSchema = z.object({ name: z.string().trim().min(1).max(80) });
 
 export const inventorySchema = z.object({

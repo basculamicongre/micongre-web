@@ -71,6 +71,40 @@ export async function createPublication(db: Database, input: { code: string; tit
 	return row.id;
 }
 
+/** Cambia nombre y tipo de cualquier publicación; el código, solo de las agregadas a mano (el de JW.ORG la identifica). La
+ * actualización desde JW.ORG solo agrega nuevas, así que no pisa estos cambios. */
+export async function updatePublication(
+	db: Database,
+	id: string,
+	input: { code?: string; title?: string; category?: LiteratureCategory },
+): Promise<void> {
+	const [row] = await db
+		.select({ source: literaturePublications.source, code: literaturePublications.code, issue: literaturePublications.issue })
+		.from(literaturePublications)
+		.where(eq(literaturePublications.id, id))
+		.limit(1);
+	if (!row) throw new LiteratureFailure("not_found", 404);
+	const code = input.code?.trim();
+	if (code && code !== row.code) {
+		if (row.source !== "manual") throw new LiteratureFailure("jw_code", 409);
+		const [dup] = await db
+			.select({ id: literaturePublications.id })
+			.from(literaturePublications)
+			.where(and(eq(literaturePublications.code, code), eq(literaturePublications.issue, row.issue)))
+			.limit(1);
+		if (dup) throw new LiteratureFailure("duplicate_code", 409);
+	}
+	await db
+		.update(literaturePublications)
+		.set({
+			...(code && code !== row.code ? { code } : {}),
+			...(input.title?.trim() ? { title: input.title.trim() } : {}),
+			...(input.category ? { category: input.category } : {}),
+			updatedAt: new Date(),
+		})
+		.where(eq(literaturePublications.id, id));
+}
+
 /** Solo se borran las agregadas a mano y que no estén en un inventario ni en una solicitud. */
 export async function deletePublication(db: Database, id: string): Promise<void> {
 	const [row] = await db.select({ source: literaturePublications.source }).from(literaturePublications).where(eq(literaturePublications.id, id)).limit(1);
