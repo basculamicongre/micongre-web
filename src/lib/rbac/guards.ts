@@ -1,8 +1,11 @@
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { Database } from "@/db/client";
-import { fieldServiceGroups, theocraticAppointments, users } from "@/db/schema";
+import { fieldServiceGroups, operationalSchedules, theocraticAppointments, users } from "@/db/schema";
 import type { Session } from "@/lib/auth/session";
 import { FIELD_SERVICE_GROUP_APPOINTMENTS, PRIVILEGE_CODES, SERVICE_COMMITTEE_APPOINTMENTS } from "./roles";
+
+/** «Acomodador de entrada» (privilegio operativo sembrado en migrations/0005). */
+const USHER_ENTRANCE_PRIVILEGE_ID = "priv_usher_entrance";
 import { getEligiblePublishers } from "./eligibility";
 import { RbacError } from "./errors";
 
@@ -105,6 +108,38 @@ export function assertCanRecordAttendance(session: Session | null): asserts sess
 	if (!session || (session.role !== "admin" && !session.privilegeCodes.includes(PRIVILEGE_CODES.MEETING_ATTENDANCE_RECORDER))) {
 		throw new RbacError("Se requiere el privilegio de registro de asistencia (S-88).");
 	}
+}
+
+/** Asistencia de UNA reunión: además de lo anterior (admin o el privilegio), el secretario de la congregación y el acomodador de
+ * entrada asignado a esa reunión (botón de asistencia de la pantalla de reuniones de la app). */
+export async function canRecordAttendanceFor(
+	db: Database,
+	session: Session | null,
+	meetingType: "midweek" | "weekend",
+	meetingId: string,
+): Promise<boolean> {
+	if (!session) return false;
+	if (session.role === "admin" || session.privilegeCodes.includes(PRIVILEGE_CODES.MEETING_ATTENDANCE_RECORDER)) return true;
+	const [[secretary], [usher]] = await Promise.all([
+		db
+			.select({ id: theocraticAppointments.id })
+			.from(theocraticAppointments)
+			.where(and(eq(theocraticAppointments.userId, session.userId), eq(theocraticAppointments.appointmentType, "secretary"), isNull(theocraticAppointments.endDate)))
+			.limit(1),
+		db
+			.select({ id: operationalSchedules.id })
+			.from(operationalSchedules)
+			.where(
+				and(
+					eq(operationalSchedules.meetingType, meetingType),
+					eq(operationalSchedules.meetingId, meetingId),
+					eq(operationalSchedules.privilegeId, USHER_ENTRANCE_PRIVILEGE_ID),
+					eq(operationalSchedules.assignedUserId, session.userId),
+				),
+			)
+			.limit(1),
+	]);
+	return !!secretary || !!usher;
 }
 
 /** Cuentas de mantenimiento del Salón del Reino (S-26/S-44): admin, o el

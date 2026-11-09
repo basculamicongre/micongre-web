@@ -168,7 +168,9 @@ Módulo «Eventos» con el mismo acceso que Congregación (`congregation_access`
 
 ### Tiempo de asignaciones (solo Android)
 
-Privilegio «Ver tiempo de asignaciones» (`meeting_timer`, `migrations/0075`; lo recibe solo el nombramiento `auxiliary_counselor` «Consejero auxiliar», y a otros se otorga a mano). En la pantalla de reuniones de la app, quien preside esa reunión (`chairmanUserId`), el consejero auxiliar o quien tenga el privilegio ve un botón de reloj: cronómetro local (no se guarda en el servidor) con la hora en que debe iniciar cada asignación (canciones de 5 min, sin hora; 1 min de cambio entre dos asignaciones) y cuánto duró cada una. La web no tiene pantalla para esto.
+Privilegio «Ver tiempo de asignaciones» (`meeting_timer`, `migrations/0075`; lo recibe solo el nombramiento `auxiliary_counselor` «Consejero auxiliar», y a otros se otorga a mano). En la pantalla de reuniones de la app, quien preside esa reunión (`chairmanUserId`), el consejero auxiliar o quien tenga el privilegio ve un botón de reloj: cronómetro local (no se guarda en el servidor) con la hora en que debe iniciar cada asignación (canciones de 5 min, sin hora; 1 min de cambio entre dos asignaciones) y cuánto duró cada una. La web no tiene pantalla para esto. El cronómetro tiene **pantalla completa** (debajo de las pestañas: la parte arriba, el tiempo lo más grande que quepa y los mismos botones abajo; se lee aun con la app en una ventanita).
+
+**Asistencia desde Reuniones (Android):** botón flotante (arriba del reloj) para registrar la asistencia de la reunión que se ve, con los contadores de Informes › Asistencia y lo ya registrado precargado. Lo ven admin, el privilegio de registro de asistencia, el **secretario** y el **acomodador de entrada asignado a esa reunión** (`canRecordAttendanceFor` en `guards.ts`, que también usa `POST /api/attendance`; `GET /api/attendance?meetingType&meetingId` devuelve `canRecord`).
 
 ### Asignación automática (`lib/assignments/`)
 

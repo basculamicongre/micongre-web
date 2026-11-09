@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/db/client";
 import { meetingAttendance } from "@/db/schema";
 import { errorResponse } from "@/lib/api/errors";
-import { assertCanRecordAttendance } from "@/lib/rbac/guards";
+import { canRecordAttendanceFor } from "@/lib/rbac/guards";
+import { RbacError } from "@/lib/rbac/errors";
 import { getSession } from "@/lib/auth/session";
 import { upsertAttendanceSchema } from "@/lib/validation/reports";
 import { rememberOperation, replayIfProcessed } from "@/lib/http/idempotency";
@@ -28,7 +29,8 @@ export async function GET(request: Request) {
 				.from(meetingAttendance)
 				.where(and(eq(meetingAttendance.meetingType, meetingType), eq(meetingAttendance.meetingId, meetingId)))
 				.limit(1);
-			return NextResponse.json({ item: row ?? null });
+			// `canRecord`: si quien consulta puede registrarla (la app muestra el botón de asistencia en la reunión).
+			return NextResponse.json({ item: row ?? null, canRecord: await canRecordAttendanceFor(db, session, meetingType, meetingId) });
 		}
 
 		// ?from=AAAA-MM-DD → toda la asistencia registrada desde esa fecha (p. ej. el año de servicio completo); sin él, las 50 más recientes.
@@ -52,7 +54,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
 	try {
 		const session = await getSession();
-		assertCanRecordAttendance(session);
+		if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
 		const parsed = upsertAttendanceSchema.safeParse(await request.json().catch(() => null));
 		if (!parsed.success) {
@@ -60,6 +62,10 @@ export async function POST(request: Request) {
 		}
 
 		const db = getDb();
+		// Admin, el privilegio de registro de asistencia, el secretario o el acomodador de entrada de ESA reunión.
+		if (!(await canRecordAttendanceFor(db, session, parsed.data.meetingType, parsed.data.meetingId))) {
+			throw new RbacError("Se requiere el privilegio de registro de asistencia (S-88).");
+		}
 		const replay = await replayIfProcessed(db, request, session.userId);
 		if (replay) return replay;
 
