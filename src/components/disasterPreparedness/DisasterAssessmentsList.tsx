@@ -139,7 +139,7 @@ export function DisasterAssessmentsList() {
 
 	return (
 		<div className="flex flex-col gap-5">
-			<PageHeader title="Contingencia" subtitle="Evaluaciones de daños y necesidades por grupo de servicio (sfg 11:5-7)." />
+			<PageHeader title="Contingencia" subtitle="Evaluaciones de daños y necesidades por grupo de servicio." />
 
 			<ChipGroup>
 				<Chip active={filter === "all"} onClick={() => setFilter("all")}>Todos</Chip>

@@ -205,8 +205,8 @@ export function TerritoriesModule({ hallAddress }: { hallAddress: string | null 
 							kind="s13"
 							params={recordParams}
 							formats={["png", "pdf"]}
-							label="Descargar S-13"
-							title="Registro de asignación de territorio (S-13)"
+							label="Descargar registro"
+							title="Registro de asignación de territorio"
 						/>
 					) : undefined
 				}

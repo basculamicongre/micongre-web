@@ -87,7 +87,8 @@ export async function GET() {
 		}
 
 		// Solo los próximos 30 días (una semana de limpieza profunda en curso cuenta).
-		const horizon = toISODate(addDays(parseISODate(today), 30));
+		// Próximas: solo lo de los siguientes 7 días (los territorios pendientes salen siempre).
+		const horizon = toISODate(addDays(parseISODate(today), 7));
 		// Un territorio pendiente se muestra hasta que el encargado lo resuelva,
 		// sin importar la fecha en que se le asignó; uno ya resuelto es historial.
 		const isPendingTerritory = (a: (typeof assignments)[number]) => a.territory?.status === "assigned";
@@ -97,8 +98,8 @@ export async function GET() {
 			assignments.filter((a) => isPendingTerritory(a) || (!isResolvedTerritory(a) && !isOver(a, now) && a.date <= horizon)),
 			{ today, weekStart, weekEnd },
 		);
-		// Historial: solo los últimos 30 días.
-		const historyFrom = toISODate(addDays(parseISODate(today), -30));
+		// Historial: todo lo de los últimos 7 días, sin excepción (en Mi Panel se ve en gris).
+		const historyFrom = toISODate(addDays(parseISODate(today), -7));
 		const history = assignments
 			.filter(
 				(a) =>
@@ -106,7 +107,6 @@ export async function GET() {
 					!isPendingTerritory(a) &&
 					(isResolvedTerritory(a) ? a.date >= historyFrom : isOver(a, now) && (a.dateEnd ?? a.date) >= historyFrom),
 			)
-			.slice(-10)
 			.reverse()
 			.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, ...rest }) => rest);
 

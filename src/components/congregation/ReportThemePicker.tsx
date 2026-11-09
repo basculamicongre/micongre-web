@@ -115,7 +115,7 @@ export function ReportThemePicker({ initial }: { initial: string | null }) {
 				})}
 			</div>
 			<p className="px-1 text-xs text-ink-soft">
-				Se aplica a los reportes en Word, imagen y Excel. Los formatos oficiales (tarjeta de territorio S-12, S-21, S-89 y S-140) conservan su diseño.
+				Se aplica a los reportes en Word, imagen y Excel. Los formatos oficiales (tarjeta de territorio, tarjeta de publicador, hojas de asignación y programa de entre semana) conservan su diseño.
 				{message ? ` ${message}` : ""}
 			</p>
 		</div>

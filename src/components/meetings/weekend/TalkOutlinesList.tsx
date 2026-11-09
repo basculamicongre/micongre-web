@@ -118,7 +118,7 @@ export function TalkOutlinesList() {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-end gap-1">
-				<IconButton label="Importar EPUB (S-99a)" icon={BookOpen} onClick={() => setImportOpen(true)} />
+				<IconButton label="Importar catálogo de bosquejos (EPUB)" icon={BookOpen} onClick={() => setImportOpen(true)} />
 				<IconButton label="Importar canciones (JW.ORG o EPUB)" icon={Music} onClick={() => setSongsOpen(true)} />
 				<Button onClick={() => setAddOpen(true)}>
 					<Plus size={16} />

@@ -106,7 +106,7 @@ export async function assertCanManageReport(
 
 export function assertCanRecordAttendance(session: Session | null): asserts session is Session {
 	if (!session || (session.role !== "admin" && !session.privilegeCodes.includes(PRIVILEGE_CODES.MEETING_ATTENDANCE_RECORDER))) {
-		throw new RbacError("Se requiere el privilegio de registro de asistencia (S-88).");
+		throw new RbacError("Se requiere el privilegio de registro de asistencia.");
 	}
 }
 

@@ -3,7 +3,7 @@
 import { IdCard } from "lucide-react";
 import { IconButton } from "@/components/ui/Layout";
 
-const LABEL = "Tarjeta de publicador (S-21)";
+const LABEL = "Tarjeta de publicador";
 
 // "accent": Mi panel y el encabezado de la ficha; "row": acción de una fila.
 export function S21Button({ userId, variant = "accent" }: { userId: string; variant?: "accent" | "row" }) {

@@ -191,7 +191,7 @@ export function S4CollectionTable() {
 				</List>
 			)}
 
-			<Modal open={!!editingRow} onClose={() => setEditingRow(null)} title="Informe mensual (S-4)">
+			<Modal open={!!editingRow} onClose={() => setEditingRow(null)} title="Informe mensual">
 				{editingRow && (
 					<S4Form
 						userId={editingRow.userId}
@@ -222,7 +222,7 @@ export function S4CollectionTable() {
 			<Modal open={!!flaggingRow} onClose={() => setFlaggingRow(null)} title="Marcar para pastoreo">
 				<div className="flex flex-col gap-3">
 					<p className="text-sm text-ink-soft">
-						Avisa al cuerpo de ancianos sobre {flaggingRow?.fullName} (luto, dificultad familiar aguda, sfg 2:4).
+						Avisa al cuerpo de ancianos sobre {flaggingRow?.fullName} (luto, dificultad familiar aguda).
 					</p>
 					<Input
 						label="Motivo"

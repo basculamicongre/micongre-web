@@ -114,7 +114,8 @@ export function PanelDashboard({
 						<AssignedPastoralVisits onChange={load} />
 					</div>
 					{history.length > 0 && (
-						<div className="order-9">
+						// En gris: ya pasaron.
+						<div className="order-9 opacity-60 grayscale">
 							<MyAssignments title="Mi historial" items={history} emptyLabel="Todavía no tienes historial." />
 						</div>
 					)}

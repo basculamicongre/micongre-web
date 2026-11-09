@@ -114,15 +114,15 @@ export default async function PublisherS21Page({
 						<S21ModeButton href={`?serviceYear=${serviceYear}${editing ? "" : "&edit=1"}`} editing={editing} />
 					)}
 				</div>
-				<PageHeader title="Tarjeta S-21" subtitle={publisher.fullName} />
+				<PageHeader title="Tarjeta de publicador" subtitle={publisher.fullName} />
 				<div className="flex items-center gap-2">
 					<ServiceYearSelect years={availableServiceYears} selected={serviceYear} />
 					<ExportButton
 						kind="s21"
 						params={{ userId: id, serviceYear: String(serviceYear) }}
 						formats={["docx", "png", "xlsx"]}
-						label="Descargar tarjeta S-21"
-						title="Descargar tarjeta S-21"
+						label="Descargar tarjeta"
+						title="Descargar tarjeta de publicador"
 					/>
 				</div>
 			</div>

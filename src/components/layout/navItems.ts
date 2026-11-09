@@ -128,9 +128,19 @@ export const NAV_GROUPS: NavGroup[] = [
 	{
 		label: "Administración",
 		items: [
-			// No exige privilegio: un superintendente/auxiliar de grupo revisa aquí los informes
-			// de su grupo (S-4) y quien registra asistencia usa /reports/attendance.
-			{ href: "/reports", label: "Informes", icon: ClipboardList },
+			// Solo con acceso a informes (el superintendente y el auxiliar de grupo reciben «Informes del grupo» por su nombramiento,
+			// migrations/0085) o a la asistencia. El propio informe y la propia tarjeta se ven desde Mi Panel.
+			{
+				href: "/reports",
+				label: "Informes",
+				icon: ClipboardList,
+				requiresAnyPrivilege: [
+					PRIVILEGE_CODES.REPORTS_ALL,
+					PRIVILEGE_CODES.REPORTS_GROUP,
+					PRIVILEGE_CODES.FIELD_SERVICE_REPORTS,
+					PRIVILEGE_CODES.MEETING_ATTENDANCE_RECORDER,
+				],
+			},
 			{
 				href: "/congregation",
 				label: "Congregación",
@@ -157,7 +167,7 @@ export const NAV_GROUPS: NavGroup[] = [
 			},
 			{
 				href: "/co-visit/dossier",
-				label: "Paquete S-61",
+				label: "Paquete de la visita",
 				icon: FileBadge,
 				requiresAnyPrivilege: [PRIVILEGE_CODES.CO_VISIT_ACCESS],
 			},

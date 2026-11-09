@@ -71,7 +71,7 @@ export function RecommendationsDecisionPanel({ visitId }: { visitId?: string }) 
 
 	return (
 		<section>
-			<SectionLabel>Recomendaciones S-62</SectionLabel>
+			<SectionLabel>Recomendaciones</SectionLabel>
 			{filtered.length === 0 ? (
 				<Card>
 					<p className="text-sm text-ink-soft">Todavía no hay recomendaciones registradas.</p>
