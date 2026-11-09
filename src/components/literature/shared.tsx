@@ -23,10 +23,11 @@ export interface Location {
 export const ERROR_TEXT: Record<string, string> = {
 	duplicate_code: "Ya hay una publicación con ese código.",
 	duplicate_location: "Ya hay una ubicación con ese nombre.",
-	in_use: "No se puede borrar porque ya se usa en un inventario o una solicitud.",
+	in_use: "No se puede borrar porque ya se usa en un inventario, una solicitud o un pedido.",
 	jw_publication: "Las publicaciones de JW.ORG no se borran.",
 	invalid_publication: "Elige una publicación del catálogo.",
 	invalid_location: "Elige una ubicación.",
+	invalid_person: "Elige quién hizo el pedido.",
 	past_end_date: "La fecha de fin ya pasó.",
 	already_sent: "Ya se envió: no se puede cambiar la publicación ni a quién va.",
 	expired: "La solicitud ya venció.",

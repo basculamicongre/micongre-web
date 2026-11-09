@@ -36,6 +36,15 @@ export const offerSchema = z.object({
 
 export const offerUpdateSchema = offerSchema.partial();
 
+export const orderSchema = z.object({
+	publicationId: z.string().min(1),
+	userId: z.string().min(1),
+	quantity: z.number().int().min(1).max(MAX_OFFER_QUANTITY),
+	note: optText(300),
+});
+
+export const orderUpdateSchema = orderSchema.partial().extend({ archived: z.boolean().optional() });
+
 export const offerResponseSchema = z.object({
 	answer: z.enum(["yes", "no"]),
 	quantity: z.number().int().min(1).max(MAX_OFFER_QUANTITY).optional(),

@@ -145,3 +145,30 @@ export const literatureOfferDismissals = sqliteTable(
 	},
 	(t) => [primaryKey({ columns: [t.offerId, t.userId] })],
 );
+
+/** Pedido que un publicador hizo por su cuenta: registro del siervo de literatura, sin avisos (migrations/0084). */
+export const literatureOrders = sqliteTable(
+	"literature_orders",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		publicationId: text("publication_id")
+			.notNull()
+			.references(() => literaturePublications.id),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		quantity: integer("quantity").notNull(),
+		note: text("note"),
+		archivedAt: integer("archived_at", { mode: "timestamp" }),
+		createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+		createdAt: integer("created_at", { mode: "timestamp" })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		updatedAt: integer("updated_at", { mode: "timestamp" })
+			.notNull()
+			.default(sql`(unixepoch())`),
+	},
+	(t) => [index("literature_orders_archived_idx").on(t.archivedAt, t.createdAt)],
+);

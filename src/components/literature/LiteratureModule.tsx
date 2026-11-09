@@ -8,12 +8,14 @@ import { CatalogTab } from "./CatalogTab";
 import { InventoryTab } from "./InventoryTab";
 import { LocationsTab } from "./LocationsTab";
 import { OffersTab } from "./OffersTab";
+import { OrdersTab } from "./OrdersTab";
 import type { Location, Publication } from "./shared";
 
-type Tab = "offers" | "inventory" | "catalog" | "locations";
+type Tab = "offers" | "orders" | "inventory" | "catalog" | "locations";
 
 const TABS: { value: Tab; label: string }[] = [
 	{ value: "offers", label: "Solicitudes" },
+	{ value: "orders", label: "Pedidos" },
 	{ value: "inventory", label: "Inventario" },
 	{ value: "catalog", label: "Catálogo" },
 	{ value: "locations", label: "Ubicaciones" },
@@ -21,17 +23,18 @@ const TABS: { value: Tab; label: string }[] = [
 
 const FAB_LABEL: Record<Tab, string> = {
 	offers: "Nueva solicitud",
+	orders: "Nuevo pedido",
 	inventory: "Nuevo corte",
 	catalog: "Agregar",
 	locations: "Nueva ubicación",
 };
 
-/** Módulo «Literatura»: solicitudes (Sí/No desde Mi Panel), inventario por cortes, catálogo de JW.ORG y ubicaciones. */
+/** Módulo «Literatura»: solicitudes (Sí/No desde Mi Panel), pedidos (registro), inventario por cortes, catálogo de JW.ORG y ubicaciones. */
 export function LiteratureModule() {
 	const [tab, setTab] = useState<Tab>("offers");
 	const [publications, setPublications] = useState<Publication[] | null>(null);
 	const [locations, setLocations] = useState<Location[]>([]);
-	const [signals, setSignals] = useState<Record<Tab, number>>({ offers: 0, inventory: 0, catalog: 0, locations: 0 });
+	const [signals, setSignals] = useState<Record<Tab, number>>({ offers: 0, orders: 0, inventory: 0, catalog: 0, locations: 0 });
 
 	const loadPublications = useCallback(async () => {
 		const response = await fetch("/api/literature/publications");
@@ -57,9 +60,10 @@ export function LiteratureModule() {
 
 	return (
 		<div className="flex flex-col gap-5 pb-24">
-			<PageHeader title="Literatura" subtitle="Solicitudes, inventario y catálogo de publicaciones" />
+			<PageHeader title="Literatura" subtitle="Solicitudes, pedidos, inventario y catálogo de publicaciones" />
 			<Segmented value={tab} onChange={setTab} options={TABS} label="Sección" />
 			{tab === "offers" && <OffersTab publications={publications} createSignal={signals.offers} />}
+			{tab === "orders" && <OrdersTab publications={publications} createSignal={signals.orders} />}
 			{tab === "inventory" && <InventoryTab publications={publications} locations={locations} createSignal={signals.inventory} onGoToLocations={() => setTab("locations")} />}
 			{tab === "catalog" && <CatalogTab publications={publications} onChanged={loadPublications} createSignal={signals.catalog} />}
 			{tab === "locations" && <LocationsTab locations={locations} onChanged={loadLocations} createSignal={signals.locations} />}

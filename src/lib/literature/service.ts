@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import {
 	fieldServiceGroups,
@@ -6,6 +6,7 @@ import {
 	literatureInventoryItems,
 	literatureLocations,
 	literatureOfferDismissals,
+	literatureOrders,
 	literatureOfferResponses,
 	literatureOffers,
 	literaturePublications,
@@ -77,7 +78,8 @@ export async function deletePublication(db: Database, id: string): Promise<void>
 	if (row.source !== "manual") throw new LiteratureFailure("jw_publication", 409);
 	const [inInventory] = await db.select({ id: literatureInventoryItems.id }).from(literatureInventoryItems).where(eq(literatureInventoryItems.publicationId, id)).limit(1);
 	const [inOffer] = await db.select({ id: literatureOffers.id }).from(literatureOffers).where(eq(literatureOffers.publicationId, id)).limit(1);
-	if (inInventory || inOffer) throw new LiteratureFailure("in_use", 409);
+	const [inOrder] = await db.select({ id: literatureOrders.id }).from(literatureOrders).where(eq(literatureOrders.publicationId, id)).limit(1);
+	if (inInventory || inOffer || inOrder) throw new LiteratureFailure("in_use", 409);
 	await db.delete(literaturePublications).where(eq(literaturePublications.id, id));
 }
 
@@ -456,4 +458,107 @@ export async function dismissOffer(db: Database, offerId: string, userId: string
 	const recipients = await offerRecipients(db, offer.audience);
 	if (!recipients.some((r) => r.userId === userId)) throw new LiteratureFailure("not_recipient", 403);
 	await db.insert(literatureOfferDismissals).values({ offerId, userId }).onConflictDoNothing();
+}
+
+// ── Pedidos (registro del siervo de literatura; no avisan a nadie) ─────────────────────────────────────────────────────────────
+
+export interface OrderView {
+	id: string;
+	publicationId: string;
+	title: string;
+	code: string;
+	issue: string;
+	imageUrl: string | null;
+	userId: string;
+	userName: string;
+	quantity: number;
+	note: string | null;
+	archived: boolean;
+	/** AAAA-MM-DD (hora de Nicaragua). */
+	createdAt: string;
+}
+
+function nicaraguaDate(d: Date): string {
+	return new Date(d.getTime() - 6 * 3600_000).toISOString().slice(0, 10);
+}
+
+/** Pedidos activos (o los archivados), el más reciente primero, y las personas que se pueden elegir. */
+export async function listOrders(db: Database, archived: boolean): Promise<{ items: OrderView[]; people: { id: string; fullName: string }[] }> {
+	const [rows, people] = await Promise.all([
+		db
+			.select({ order: literatureOrders, publication: publicationColumns, userName: users.fullName })
+			.from(literatureOrders)
+			.innerJoin(literaturePublications, eq(literaturePublications.id, literatureOrders.publicationId))
+			.innerJoin(users, eq(users.id, literatureOrders.userId))
+			.where(archived ? isNotNull(literatureOrders.archivedAt) : isNull(literatureOrders.archivedAt))
+			.orderBy(desc(literatureOrders.createdAt)),
+		db.select({ id: users.id, fullName: users.fullName }).from(users).where(notHiddenAdmin).orderBy(asc(users.fullName)),
+	]);
+	return {
+		items: rows.map(({ order, publication, userName }) => ({
+			id: order.id,
+			publicationId: publication.id,
+			title: publication.title,
+			code: publication.code,
+			issue: publication.issue,
+			imageUrl: publication.imageUrl,
+			userId: order.userId,
+			userName,
+			quantity: order.quantity,
+			note: order.note,
+			archived: !!order.archivedAt,
+			createdAt: nicaraguaDate(order.createdAt),
+		})),
+		people,
+	};
+}
+
+async function assertPerson(db: Database, id: string) {
+	const [row] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, id), notHiddenAdmin)).limit(1);
+	if (!row) throw new LiteratureFailure("invalid_person");
+}
+
+export async function createOrder(
+	db: Database,
+	input: { publicationId: string; userId: string; quantity: number; note?: string | null },
+	createdBy: string,
+): Promise<string> {
+	await assertPublication(db, input.publicationId);
+	await assertPerson(db, input.userId);
+	const id = crypto.randomUUID();
+	await db.insert(literatureOrders).values({
+		id,
+		publicationId: input.publicationId,
+		userId: input.userId,
+		quantity: input.quantity,
+		note: input.note?.trim() || null,
+		createdByUserId: createdBy,
+	});
+	return id;
+}
+
+export async function updateOrder(
+	db: Database,
+	id: string,
+	input: { publicationId?: string; userId?: string; quantity?: number; note?: string | null; archived?: boolean },
+): Promise<void> {
+	const [row] = await db.select({ id: literatureOrders.id }).from(literatureOrders).where(eq(literatureOrders.id, id)).limit(1);
+	if (!row) throw new LiteratureFailure("not_found", 404);
+	if (input.publicationId) await assertPublication(db, input.publicationId);
+	if (input.userId) await assertPerson(db, input.userId);
+	await db
+		.update(literatureOrders)
+		.set({
+			...(input.publicationId ? { publicationId: input.publicationId } : {}),
+			...(input.userId ? { userId: input.userId } : {}),
+			...(input.quantity ? { quantity: input.quantity } : {}),
+			...(input.note !== undefined ? { note: input.note?.trim() || null } : {}),
+			...(input.archived !== undefined ? { archivedAt: input.archived ? new Date() : null } : {}),
+			updatedAt: new Date(),
+		})
+		.where(eq(literatureOrders.id, id));
+}
+
+export async function deleteOrder(db: Database, id: string): Promise<void> {
+	await db.delete(literatureOrders).where(eq(literatureOrders.id, id));
 }
