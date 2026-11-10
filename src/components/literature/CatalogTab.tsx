@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Chip, ChipGroup, IconButton, List } from "@/components/ui/Layout";
 import { Input, Select } from "@/components/ui/Input";
@@ -20,7 +20,8 @@ export function CatalogTab({ publications, onChanged, createSignal }: { publicat
 	const [limit, setLimit] = useState(PAGE);
 	const [syncing, setSyncing] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
-	const [adding, setAdding] = useState<{ code: string; title: string; category: LiteratureCategoryCode } | null>(null);
+	// Agregar (sin id) o cambiar (con id; `jw` = viene de JW.ORG y su código no se cambia).
+	const [adding, setAdding] = useState<{ id?: string; jw?: boolean; code: string; title: string; category: LiteratureCategoryCode } | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [lastSignal, setLastSignal] = useState(createSignal);
 
@@ -49,7 +50,10 @@ export function CatalogTab({ publications, onChanged, createSignal }: { publicat
 	async function add() {
 		if (!adding) return;
 		setError(null);
-		const result = await send("/api/literature/publications", "POST", adding);
+		const body = { code: adding.code, title: adding.title, category: adding.category };
+		const result = adding.id
+			? await send(`/api/literature/publications/${adding.id}`, "PATCH", adding.jw ? { title: body.title, category: body.category } : body)
+			: await send("/api/literature/publications", "POST", body);
 		if (!result.ok) return setError(result.error);
 		setAdding(null);
 		await onChanged();
@@ -107,6 +111,14 @@ export function CatalogTab({ publications, onChanged, createSignal }: { publicat
 									{p.source === "manual" ? " · agregada a mano" : ""}
 								</p>
 							</div>
+							<IconButton
+								label="Cambiar"
+								icon={Pencil}
+								onClick={() => {
+									setError(null);
+									setAdding({ id: p.id, jw: p.source !== "manual", code: p.code, title: p.title, category: p.category });
+								}}
+							/>
 							{p.source === "manual" && <IconButton label="Borrar" icon={Trash2} onClick={() => remove(p)} />}
 						</div>
 					))}
@@ -121,10 +133,11 @@ export function CatalogTab({ publications, onChanged, createSignal }: { publicat
 			)}
 
 			{adding && (
-				<Modal open onClose={() => setAdding(null)} title="Agregar publicación">
+				<Modal open onClose={() => setAdding(null)} title={adding.id ? "Cambiar publicación" : "Agregar publicación"}>
 					<div className="flex flex-col gap-4">
-						<p className="text-sm text-ink-soft">Para lo que no está en JW.ORG (por ejemplo, tarjetas de contacto o una edición en otro idioma).</p>
-						<Input label="Código" value={adding.code} maxLength={40} onChange={(e) => setAdding({ ...adding, code: e.target.value })} />
+						{!adding.id && <p className="text-sm text-ink-soft">Para lo que no está en JW.ORG (por ejemplo, tarjetas de contacto o una edición en otro idioma).</p>}
+						{adding.jw && <p className="text-sm text-ink-soft">Viene de JW.ORG: puedes cambiar el nombre y el tipo; el código no.</p>}
+						<Input label="Código" value={adding.code} maxLength={40} disabled={adding.jw} onChange={(e) => setAdding({ ...adding, code: e.target.value })} />
 						<Input label="Nombre" value={adding.title} maxLength={300} onChange={(e) => setAdding({ ...adding, title: e.target.value })} />
 						<Select label="Tipo" value={adding.category} onChange={(e) => setAdding({ ...adding, category: e.target.value as LiteratureCategoryCode })}>
 							{CATEGORIES.map((c) => (
@@ -139,7 +152,7 @@ export function CatalogTab({ publications, onChanged, createSignal }: { publicat
 								Cancelar
 							</Button>
 							<Button onClick={add} disabled={!adding.code.trim() || !adding.title.trim()}>
-								Agregar
+								{adding.id ? "Guardar" : "Agregar"}
 							</Button>
 						</div>
 					</div>

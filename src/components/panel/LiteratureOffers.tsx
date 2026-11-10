@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { List, SectionLabel } from "@/components/ui/Layout";
+import { IconButton, List, SectionLabel } from "@/components/ui/Layout";
 import { Cover } from "@/components/literature/shared";
 import { formatShortDayMonth } from "@/lib/dateFormat";
 import { MAX_OFFER_QUANTITY, publicationCode } from "@/lib/literature/rules";
@@ -21,8 +21,8 @@ interface MyOffer {
 	quantity: number;
 }
 
-/** Mi Panel: publicaciones que ofrece el siervo de literatura. Se responde Sí (con cantidad) o No hasta la fecha de fin; después la
- * tarjeta desaparece sola. */
+/** Mi Panel: publicaciones que ofrece el siervo de literatura. Se responde Sí (con cantidad) o No y se puede cambiar hasta la fecha
+ * de fin; después la tarjeta desaparece sola. La X la quita de Mi Panel antes (lo respondido se conserva). */
 export function LiteratureOffers() {
 	const [items, setItems] = useState<MyOffer[]>([]);
 	const [busy, setBusy] = useState<string | null>(null);
@@ -53,6 +53,18 @@ export function LiteratureOffers() {
 		setItems((list) => list.map((o) => (o.id === offer.id ? { ...o, answer, quantity: answer === "yes" ? quantity : o.quantity } : o)));
 	}
 
+	async function dismiss(offer: MyOffer) {
+		setBusy(offer.id);
+		setError(null);
+		const response = await fetch(`/api/literature/offers/${offer.id}/dismiss`, { method: "POST" });
+		setBusy(null);
+		if (!response.ok) {
+			setError("No se pudo quitar. Intenta de nuevo.");
+			return;
+		}
+		setItems((list) => list.filter((o) => o.id !== offer.id));
+	}
+
 	if (items.length === 0) return null;
 
 	return (
@@ -71,6 +83,7 @@ export function LiteratureOffers() {
 								</p>
 								{o.message && <p className="mt-1 whitespace-pre-line text-[13px] text-ink">{o.message}</p>}
 							</div>
+							<IconButton label="Quitar de Mi Panel" icon={X} disabled={busy === o.id} onClick={() => dismiss(o)} />
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
 							<span className="mr-auto text-sm text-ink">{o.forGroup ? "¿Tu grupo la quiere?" : "¿La quieres?"}</span>

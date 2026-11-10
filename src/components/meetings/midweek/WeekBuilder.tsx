@@ -286,7 +286,7 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 				<div className="flex flex-wrap items-center gap-1">
 					{sendMessage && <span className="text-xs text-ink-soft">{sendMessage}</span>}
 					<AutoAssignButton module="midweek" meetingId={meetingId} onApply={applyAutoAssign} disabled={dirty} />
-					<IconButton label="Ver notificaciones S-89" icon={FileText} href={`/meetings/midweek/${meetingId}/notify`} />
+					<IconButton label="Ver hojas de asignación" icon={FileText} href={`/meetings/midweek/${meetingId}/notify`} />
 					<SendAssignmentsButton endpoint={`/api/midweek/${meetingId}/notify`} onMessage={setSendMessage} />
 					<Button onClick={handleSave} disabled={!dirty || saving}>
 						<Save size={16} />

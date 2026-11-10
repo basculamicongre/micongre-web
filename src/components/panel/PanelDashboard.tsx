@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/Layout";
 import type { PanelAssignment } from "@/lib/queries/panel";
 import { AssignedPastoralVisits } from "./AssignedPastoralVisits";
+import { DataUpdatePrompt } from "./DataUpdatePrompt";
 import { LiteratureOffers } from "./LiteratureOffers";
 import { MyAssignments } from "./MyAssignments";
 import { MyGroup } from "./MyGroup";
@@ -27,7 +28,18 @@ interface Group {
 
 const now = new Date();
 
-export function PanelDashboard({ userId, fullName, canReport = true }: { userId: string; fullName: string; canReport?: boolean }) {
+export function PanelDashboard({
+	userId,
+	fullName,
+	canReport = true,
+	canRequestData = false,
+}: {
+	userId: string;
+	fullName: string;
+	canReport?: boolean;
+	/** Superintendente/auxiliar de grupo o admin: «Solicitar datos» en Mi grupo. */
+	canRequestData?: boolean;
+}) {
 	const [upcoming, setUpcoming] = useState<PanelAssignment[]>([]);
 	const [history, setHistory] = useState<PanelAssignment[]>([]);
 	const [group, setGroup] = useState<Group | null>(null);
@@ -79,6 +91,9 @@ export function PanelDashboard({ userId, fullName, canReport = true }: { userId:
 				</Link>
 			</div>
 
+			{/* Lo primero: si le pidieron actualizar sus datos. */}
+			<DataUpdatePrompt />
+
 			<div className="flex flex-col gap-6 lg:grid lg:grid-cols-5 lg:items-start lg:gap-8">
 				<div className="contents lg:col-span-3 lg:min-w-0 lg:flex lg:flex-col lg:gap-6">
 					<div className="order-1 empty:hidden">
@@ -99,7 +114,8 @@ export function PanelDashboard({ userId, fullName, canReport = true }: { userId:
 						<AssignedPastoralVisits onChange={load} />
 					</div>
 					{history.length > 0 && (
-						<div className="order-9">
+						// En gris: ya pasaron.
+						<div className="order-9 opacity-60 grayscale">
 							<MyAssignments title="Mi historial" items={history} emptyLabel="Todavía no tienes historial." />
 						</div>
 					)}
@@ -118,9 +134,9 @@ export function PanelDashboard({ userId, fullName, canReport = true }: { userId:
 					<div className="order-5 empty:hidden">
 						<RegularPioneerCard />
 					</div>
-					{group && (
+					{(group || canRequestData) && (
 						<div className="order-8">
-							<MyGroup group={group} />
+							<MyGroup group={group} canRequestData={canRequestData} />
 						</div>
 					)}
 				</div>

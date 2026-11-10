@@ -1,10 +1,12 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { Database } from "@/db/client";
 import {
 	fieldServiceGroups,
 	literatureInventories,
 	literatureInventoryItems,
 	literatureLocations,
+	literatureOfferDismissals,
+	literatureOrders,
 	literatureOfferResponses,
 	literatureOffers,
 	literaturePublications,
@@ -69,6 +71,40 @@ export async function createPublication(db: Database, input: { code: string; tit
 	return row.id;
 }
 
+/** Cambia nombre y tipo de cualquier publicación; el código, solo de las agregadas a mano (el de JW.ORG la identifica). La
+ * actualización desde JW.ORG solo agrega nuevas, así que no pisa estos cambios. */
+export async function updatePublication(
+	db: Database,
+	id: string,
+	input: { code?: string; title?: string; category?: LiteratureCategory },
+): Promise<void> {
+	const [row] = await db
+		.select({ source: literaturePublications.source, code: literaturePublications.code, issue: literaturePublications.issue })
+		.from(literaturePublications)
+		.where(eq(literaturePublications.id, id))
+		.limit(1);
+	if (!row) throw new LiteratureFailure("not_found", 404);
+	const code = input.code?.trim();
+	if (code && code !== row.code) {
+		if (row.source !== "manual") throw new LiteratureFailure("jw_code", 409);
+		const [dup] = await db
+			.select({ id: literaturePublications.id })
+			.from(literaturePublications)
+			.where(and(eq(literaturePublications.code, code), eq(literaturePublications.issue, row.issue)))
+			.limit(1);
+		if (dup) throw new LiteratureFailure("duplicate_code", 409);
+	}
+	await db
+		.update(literaturePublications)
+		.set({
+			...(code && code !== row.code ? { code } : {}),
+			...(input.title?.trim() ? { title: input.title.trim() } : {}),
+			...(input.category ? { category: input.category } : {}),
+			updatedAt: new Date(),
+		})
+		.where(eq(literaturePublications.id, id));
+}
+
 /** Solo se borran las agregadas a mano y que no estén en un inventario ni en una solicitud. */
 export async function deletePublication(db: Database, id: string): Promise<void> {
 	const [row] = await db.select({ source: literaturePublications.source }).from(literaturePublications).where(eq(literaturePublications.id, id)).limit(1);
@@ -76,7 +112,8 @@ export async function deletePublication(db: Database, id: string): Promise<void>
 	if (row.source !== "manual") throw new LiteratureFailure("jw_publication", 409);
 	const [inInventory] = await db.select({ id: literatureInventoryItems.id }).from(literatureInventoryItems).where(eq(literatureInventoryItems.publicationId, id)).limit(1);
 	const [inOffer] = await db.select({ id: literatureOffers.id }).from(literatureOffers).where(eq(literatureOffers.publicationId, id)).limit(1);
-	if (inInventory || inOffer) throw new LiteratureFailure("in_use", 409);
+	const [inOrder] = await db.select({ id: literatureOrders.id }).from(literatureOrders).where(eq(literatureOrders.publicationId, id)).limit(1);
+	if (inInventory || inOffer || inOrder) throw new LiteratureFailure("in_use", 409);
 	await db.delete(literaturePublications).where(eq(literaturePublications.id, id));
 }
 
@@ -358,7 +395,11 @@ export async function sendOffer(db: Database, id: string): Promise<{ sent: numbe
 	const offer = await getOffer(db, id);
 	if (offer.endsOn < nicaraguaToday()) throw new LiteratureFailure("expired", 409);
 	await db.update(literatureOffers).set({ notifiedAt: new Date(), updatedAt: new Date() }).where(eq(literatureOffers.id, id));
-	const to = offer.summary.pending.map((p) => p.userId);
+	// Reenviar avisa a quienes no han respondido, menos a quien ya la quitó de su Mi Panel.
+	const dismissed = new Set(
+		(await db.select({ userId: literatureOfferDismissals.userId }).from(literatureOfferDismissals).where(eq(literatureOfferDismissals.offerId, id))).map((d) => d.userId),
+	);
+	const to = offer.summary.pending.map((p) => p.userId).filter((u) => !dismissed.has(u));
 	const forGroup = offer.audience === "group_overseers" ? " para tu grupo" : "";
 	await notifyUsers(db, to, {
 		title: "Literatura",
@@ -395,7 +436,17 @@ export async function myOpenOffers(db: Database, userId: string): Promise<MyOffe
 	if (rows.length === 0) return [];
 	const audiences = [...new Set(rows.map((r) => r.offer.audience))];
 	const recipients = new Map(await Promise.all(audiences.map(async (a) => [a, (await offerRecipients(db, a)).find((p) => p.userId === userId)] as const)));
-	const mine = rows.filter((r) => recipients.get(r.offer.audience));
+	const candidates = rows.filter((r) => recipients.get(r.offer.audience));
+	if (candidates.length === 0) return [];
+	const dismissed = new Set(
+		(
+			await db
+				.select({ offerId: literatureOfferDismissals.offerId })
+				.from(literatureOfferDismissals)
+				.where(and(eq(literatureOfferDismissals.userId, userId), inArray(literatureOfferDismissals.offerId, candidates.map((r) => r.offer.id))))
+		).map((d) => d.offerId),
+	);
+	const mine = candidates.filter((r) => !dismissed.has(r.offer.id));
 	if (mine.length === 0) return [];
 	const responses = await db
 		.select()
@@ -432,4 +483,116 @@ export async function respondToOffer(db: Database, offerId: string, userId: stri
 			target: [literatureOfferResponses.offerId, literatureOfferResponses.userId],
 			set: { answer, quantity: qty, respondedAt: new Date() },
 		});
+}
+
+/** Quita la solicitud del Mi Panel de esta persona (haya respondido o no; lo respondido se conserva y ya no se le reenvía). */
+export async function dismissOffer(db: Database, offerId: string, userId: string): Promise<void> {
+	const [offer] = await db.select({ audience: literatureOffers.audience }).from(literatureOffers).where(eq(literatureOffers.id, offerId)).limit(1);
+	if (!offer) throw new LiteratureFailure("not_found", 404);
+	const recipients = await offerRecipients(db, offer.audience);
+	if (!recipients.some((r) => r.userId === userId)) throw new LiteratureFailure("not_recipient", 403);
+	await db.insert(literatureOfferDismissals).values({ offerId, userId }).onConflictDoNothing();
+}
+
+// ── Pedidos (registro del siervo de literatura; no avisan a nadie) ─────────────────────────────────────────────────────────────
+
+export interface OrderView {
+	id: string;
+	publicationId: string;
+	title: string;
+	code: string;
+	issue: string;
+	imageUrl: string | null;
+	userId: string;
+	userName: string;
+	quantity: number;
+	note: string | null;
+	archived: boolean;
+	/** AAAA-MM-DD (hora de Nicaragua). */
+	createdAt: string;
+}
+
+function nicaraguaDate(d: Date): string {
+	return new Date(d.getTime() - 6 * 3600_000).toISOString().slice(0, 10);
+}
+
+/** Pedidos activos (o los archivados), el más reciente primero, y las personas que se pueden elegir. */
+export async function listOrders(db: Database, archived: boolean): Promise<{ items: OrderView[]; people: { id: string; fullName: string }[] }> {
+	const [rows, people] = await Promise.all([
+		db
+			.select({ order: literatureOrders, publication: publicationColumns, userName: users.fullName })
+			.from(literatureOrders)
+			.innerJoin(literaturePublications, eq(literaturePublications.id, literatureOrders.publicationId))
+			.innerJoin(users, eq(users.id, literatureOrders.userId))
+			.where(archived ? isNotNull(literatureOrders.archivedAt) : isNull(literatureOrders.archivedAt))
+			.orderBy(desc(literatureOrders.createdAt)),
+		db.select({ id: users.id, fullName: users.fullName }).from(users).where(notHiddenAdmin).orderBy(asc(users.fullName)),
+	]);
+	return {
+		items: rows.map(({ order, publication, userName }) => ({
+			id: order.id,
+			publicationId: publication.id,
+			title: publication.title,
+			code: publication.code,
+			issue: publication.issue,
+			imageUrl: publication.imageUrl,
+			userId: order.userId,
+			userName,
+			quantity: order.quantity,
+			note: order.note,
+			archived: !!order.archivedAt,
+			createdAt: nicaraguaDate(order.createdAt),
+		})),
+		people,
+	};
+}
+
+async function assertPerson(db: Database, id: string) {
+	const [row] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, id), notHiddenAdmin)).limit(1);
+	if (!row) throw new LiteratureFailure("invalid_person");
+}
+
+export async function createOrder(
+	db: Database,
+	input: { publicationId: string; userId: string; quantity: number; note?: string | null },
+	createdBy: string,
+): Promise<string> {
+	await assertPublication(db, input.publicationId);
+	await assertPerson(db, input.userId);
+	const id = crypto.randomUUID();
+	await db.insert(literatureOrders).values({
+		id,
+		publicationId: input.publicationId,
+		userId: input.userId,
+		quantity: input.quantity,
+		note: input.note?.trim() || null,
+		createdByUserId: createdBy,
+	});
+	return id;
+}
+
+export async function updateOrder(
+	db: Database,
+	id: string,
+	input: { publicationId?: string; userId?: string; quantity?: number; note?: string | null; archived?: boolean },
+): Promise<void> {
+	const [row] = await db.select({ id: literatureOrders.id }).from(literatureOrders).where(eq(literatureOrders.id, id)).limit(1);
+	if (!row) throw new LiteratureFailure("not_found", 404);
+	if (input.publicationId) await assertPublication(db, input.publicationId);
+	if (input.userId) await assertPerson(db, input.userId);
+	await db
+		.update(literatureOrders)
+		.set({
+			...(input.publicationId ? { publicationId: input.publicationId } : {}),
+			...(input.userId ? { userId: input.userId } : {}),
+			...(input.quantity ? { quantity: input.quantity } : {}),
+			...(input.note !== undefined ? { note: input.note?.trim() || null } : {}),
+			...(input.archived !== undefined ? { archivedAt: input.archived ? new Date() : null } : {}),
+			updatedAt: new Date(),
+		})
+		.where(eq(literatureOrders.id, id));
+}
+
+export async function deleteOrder(db: Database, id: string): Promise<void> {
+	await db.delete(literatureOrders).where(eq(literatureOrders.id, id));
 }

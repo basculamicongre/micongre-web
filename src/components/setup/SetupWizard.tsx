@@ -574,12 +574,12 @@ export function SetupWizard({ existingUserCount }: { existingUserCount: number }
 												checked={congregation.isContactCongregation}
 												onChange={(e) => setCong("isContactCongregation", e.target.checked)}
 											/>
-											Es la congregación de contacto del Salón (sfg 13:4)
+											Es la congregación de contacto del Salón
 										</label>
 									</section>
 
 									<section className="flex flex-col gap-3">
-										<h3 className="text-sm font-semibold text-ink">Horarios de reunión (sfg 4:4)</h3>
+										<h3 className="text-sm font-semibold text-ink">Horarios de reunión</h3>
 										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 											<div className="grid grid-cols-2 gap-2">
 												<DaySelect label="Entre semana — día" value={congregation.midweekDay} onChange={(v) => setCong("midweekDay", v)} />

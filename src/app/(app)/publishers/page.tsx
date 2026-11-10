@@ -10,6 +10,7 @@ import {
 	getS21GroupScope,
 } from "@/lib/rbac/guards";
 import { PRIVILEGE_CODES } from "@/lib/rbac/roles";
+import { canRequestData } from "@/lib/dataRequests/service";
 
 export default async function PublishersPage() {
 	const session = await getSession();
@@ -37,6 +38,7 @@ export default async function PublishersPage() {
 	return (
 		<PublisherTable
 			isAdmin={session.role === "admin"}
+			canRequestData={canRequestData(session)}
 			canEditGroup={session.role === "admin" || session.privilegeCodes.includes(PRIVILEGE_CODES.PUBLISHERS_ALL)}
 			canManageAppointments={appointments}
 			canAdministerAccounts={canAdministerAccounts(session)}

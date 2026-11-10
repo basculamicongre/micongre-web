@@ -282,13 +282,13 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 									checked={form.isContactCongregation}
 									onChange={(e) => set("isContactCongregation", e.target.checked)}
 								/>
-								Es la congregación de contacto del Salón (sfg 13:4)
+								Es la congregación de contacto del Salón
 							</label>
 						</Card>
 					</section>
 
 					<section>
-						<SectionLabel>Comité de Servicio (sfg 1:10)</SectionLabel>
+						<SectionLabel>Comité de Servicio</SectionLabel>
 						<div className="divide-y divide-border overflow-hidden rounded-[20px] bg-surface">
 							{[
 								{ label: "Coordinador", value: committee?.cobeName },
@@ -307,7 +307,7 @@ export function CongregationSettingsForm({ isAdmin = false }: { isAdmin?: boolea
 					</section>
 
 					<section>
-						<SectionLabel>Horarios de reunión (sfg 4:4)</SectionLabel>
+						<SectionLabel>Horarios de reunión</SectionLabel>
 						<Card>
 							<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 								<div className="grid grid-cols-2 gap-2">

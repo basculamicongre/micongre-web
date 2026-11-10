@@ -367,7 +367,7 @@ export function PastoralDashboard() {
 
 					{pioneerAlerts.length > 0 && (
 						<section>
-							<SectionLabel>Precursores bajo el ritmo anual (sfg 14:5)</SectionLabel>
+							<SectionLabel>Precursores bajo el ritmo anual</SectionLabel>
 							<List>
 								{pioneerAlerts.map((p) => (
 									<ListRow key={p.id} title={p.fullName} subtitle={`${p.hoursSoFar}h de ${p.expectedByNow}h esperadas`} />

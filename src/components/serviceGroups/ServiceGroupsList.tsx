@@ -213,7 +213,7 @@ export function ServiceGroupsList() {
 						))}
 					</Select>
 					<Input
-						label="Lugar de reunión habitual (dirección o enlace de Zoom, sfg 3:3)"
+						label="Lugar de reunión habitual (dirección o enlace de Zoom)"
 						value={regularMeetingPlace}
 						onChange={(e) => setRegularMeetingPlace(e.target.value)}
 					/>

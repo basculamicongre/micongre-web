@@ -48,7 +48,7 @@ export default async function MidweekNotifyPage({ params }: { params: Promise<{ 
 
 	return (
 		<div className="flex flex-col gap-4">
-			<PageHeader title="Notificaciones S-89" subtitle={formatLongDate(meeting.meetingDate)} />
+			<PageHeader title="Hojas de asignación" subtitle={formatLongDate(meeting.meetingDate)} />
 			<p className="text-sm text-ink-soft">
 				Una papeleta por publicador con una asignación. Imprime esta página o comparte cada
 				recuadro individualmente.
@@ -63,7 +63,7 @@ export default async function MidweekNotifyPage({ params }: { params: Promise<{ 
 			<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 				{slips.map((slip) => (
 					<Card key={slip.assignmentId} className="border-2">
-						<p className="text-xs uppercase tracking-wide text-ink-soft">Asignación — S-89</p>
+						<p className="text-xs uppercase tracking-wide text-ink-soft">Asignación</p>
 						<p className="mt-1 text-lg font-semibold text-ink">{slip.publisherName}</p>
 						<p className="text-sm text-ink-soft">
 							{slip.sectionLabel}

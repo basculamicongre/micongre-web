@@ -218,6 +218,7 @@ export async function listSessionsForCalendar(
 		(s) =>
 			s.targets.congregation ||
 			s.targets.users.some((u) => u.id === userId) ||
+			s.territories.some((t) => t.assigneeUserId === userId) ||
 			(!!me?.groupId && s.targets.groups.some((g) => g.id === me.groupId)),
 	);
 }

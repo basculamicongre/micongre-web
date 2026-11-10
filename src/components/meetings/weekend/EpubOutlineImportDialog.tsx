@@ -12,7 +12,7 @@ interface ImportResult {
 
 const ERROR_MESSAGES: Record<string, string> = {
 	missing_file: "Selecciona un archivo EPUB.",
-	unrecognized_file: "No se reconoció la estructura del archivo S-99a en este EPUB.",
+	unrecognized_file: "No se reconoció la lista de títulos de discursos en este EPUB.",
 };
 
 export function EpubOutlineImportDialog({
@@ -61,10 +61,10 @@ export function EpubOutlineImportDialog({
 	}
 
 	return (
-		<Modal open={open} onClose={handleClose} title="Importar catálogo S-99a">
+		<Modal open={open} onClose={handleClose} title="Importar catálogo de bosquejos">
 			<div className="flex flex-col gap-3">
 				<p className="text-sm text-ink-soft">
-					Sube el archivo EPUB del formulario S-99a ("Títulos de los discursos públicos ordenados por
+					Sube el archivo EPUB con la lista de títulos de los discursos públicos ("Títulos de los discursos públicos ordenados por
 					temas"). Se agregan los bosquejos nuevos y se actualizan la categoría/título de los que ya
 					existan por número.
 				</p>

@@ -87,7 +87,8 @@ export async function GET() {
 		}
 
 		// Solo los próximos 30 días (una semana de limpieza profunda en curso cuenta).
-		const horizon = toISODate(addDays(parseISODate(today), 30));
+		// Próximas: solo lo de los siguientes 7 días (los territorios pendientes salen siempre).
+		const horizon = toISODate(addDays(parseISODate(today), 7));
 		// Un territorio pendiente se muestra hasta que el encargado lo resuelva,
 		// sin importar la fecha en que se le asignó; uno ya resuelto es historial.
 		const isPendingTerritory = (a: (typeof assignments)[number]) => a.territory?.status === "assigned";
@@ -97,8 +98,8 @@ export async function GET() {
 			assignments.filter((a) => isPendingTerritory(a) || (!isResolvedTerritory(a) && !isOver(a, now) && a.date <= horizon)),
 			{ today, weekStart, weekEnd },
 		);
-		// Historial: solo los últimos 30 días.
-		const historyFrom = toISODate(addDays(parseISODate(today), -30));
+		// Historial: todo lo de los últimos 7 días, sin excepción (en Mi Panel se ve en gris).
+		const historyFrom = toISODate(addDays(parseISODate(today), -7));
 		const history = assignments
 			.filter(
 				(a) =>
@@ -106,7 +107,6 @@ export async function GET() {
 					!isPendingTerritory(a) &&
 					(isResolvedTerritory(a) ? a.date >= historyFrom : isOver(a, now) && (a.dateEnd ?? a.date) >= historyFrom),
 			)
-			.slice(-10)
 			.reverse()
 			.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, ...rest }) => rest);
 
@@ -136,7 +136,7 @@ export async function GET() {
 
 				// Nombramientos activos de cada compañero — solo los que importan para
 				// las insignias (AC/SM/PR/PA), ver getAppointmentBadges.
-				const memberIds = memberRows.map((m) => m.id);
+				const memberIds = [...memberRows.map((m) => m.id), ...leadIds];
 				const appointmentRows = memberIds.length
 					? await db
 							.select({ userId: theocraticAppointments.userId, appointmentType: theocraticAppointments.appointmentType })
@@ -159,14 +159,22 @@ export async function GET() {
 					activeAppointmentTypes: appointmentRows.filter((a) => a.userId === m.id).map((a) => a.appointmentType),
 				}));
 
-				const [overseer, assistant] = await Promise.all([
-					groupRow.overseerUserId
-						? db.select({ fullName: users.fullName }).from(users).where(eq(users.id, groupRow.overseerUserId)).then((r) => r[0]?.fullName ?? null)
-						: null,
-					groupRow.assistantUserId
-						? db.select({ fullName: users.fullName }).from(users).where(eq(users.id, groupRow.assistantUserId)).then((r) => r[0]?.fullName ?? null)
-						: null,
-				]);
+				const leadRows = leadIds.length
+					? await db.select({ id: users.id, fullName: users.fullName, phone: users.phone }).from(users).where(inArray(users.id, leadIds))
+					: [];
+				const lead = (id: string | null) => leadRows.find((u) => u.id === id) ?? null;
+				const overseerRow = lead(groupRow.overseerUserId);
+				const assistantRow = lead(groupRow.assistantUserId);
+				const overseer = overseerRow?.fullName ?? null;
+				const assistant = assistantRow?.fullName ?? null;
+				const badges = (id: string) => appointmentRows.filter((a) => a.userId === id).map((a) => a.appointmentType);
+				// `people`: todo el grupo para contactar, primero el superintendente, luego el auxiliar y luego los demás por nombre.
+				// (`members` sigue sin ellos para las versiones anteriores de la app.)
+				const people = [
+					...(overseerRow ? [{ ...overseerRow, role: "overseer" as const, activeAppointmentTypes: badges(overseerRow.id) }] : []),
+					...(assistantRow ? [{ ...assistantRow, role: "assistant" as const, activeAppointmentTypes: badges(assistantRow.id) }] : []),
+					...members.map((m) => ({ ...m, role: null })),
+				];
 
 				group = {
 					id: groupRow.id,
@@ -175,6 +183,7 @@ export async function GET() {
 					overseerName: overseer,
 					assistantName: assistant,
 					members,
+					people,
 				};
 			}
 		}

@@ -54,7 +54,7 @@ export function MidweekList() {
 							variants={[
 								{ label: "Esta semana", kind: "s140", params: { scope: "week" } },
 								{ label: "Todo el mes", kind: "s140", params: { scope: "month" } },
-								{ label: "Hojas de asignaciones (S-89)", kind: "s89", params: { scope: "week" } },
+								{ label: "Hojas de asignación", kind: "s89", params: { scope: "week" } },
 							]}
 							label="Descargar reporte"
 							title="Reporte de entre semana"

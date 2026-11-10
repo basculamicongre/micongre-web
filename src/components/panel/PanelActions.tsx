@@ -19,9 +19,9 @@ export function PanelActions({ userId, canReport = true, onRequestPastoralVisit 
 			<Button variant="secondary" onClick={onRequestPastoralVisit} title="Solicitar visita de pastoreo">
 				Solicitar visita
 			</Button>
-			<Tooltip content="Tarjeta de publicador (S-21)">
+			<Tooltip content="Mi tarjeta de publicador">
 				<Link prefetch={false} href={`/publishers/${userId}/s21`} className={LINK_CLASS}>
-					Mi S-21
+					Mi tarjeta
 				</Link>
 			</Tooltip>
 		</div>

@@ -248,7 +248,7 @@ export function EditPublisherForm({
 
 					<label className="flex min-h-11 items-center gap-3 text-sm text-ink">
 						<input type="checkbox" className="h-5 w-5 shrink-0 accent-accent" checked={form.hasDpaCard} onChange={(e) => set("hasDpaCard", e.target.checked)} />
-						Tiene tarjeta DPA (Instrucciones Médicas, sfg 10:2)
+						Tiene tarjeta DPA (Instrucciones Médicas)
 					</label>
 
 					<label className="flex min-h-11 items-center gap-3 text-sm text-ink">
@@ -258,7 +258,7 @@ export function EditPublisherForm({
 							checked={form.isEligibleForReducedReport}
 							onChange={(e) => set("isEligibleForReducedReport", e.target.checked)}
 						/>
-						Elegible para informe de 15 minutos por edad/salud (sfg 10:2)
+						Elegible para informe de 15 minutos por edad/salud
 					</label>
 
 					<label className="flex min-h-11 items-center gap-3 text-sm text-ink">
@@ -267,7 +267,7 @@ export function EditPublisherForm({
 					</label>
 					{form.isMinor && (
 						<Select
-							label="Tutor (permiso parental — sfg 1:23-24)"
+							label="Tutor (permiso parental)"
 							value={form.guardianUserId ?? ""}
 							onChange={(e) => set("guardianUserId", e.target.value || null)}
 						>

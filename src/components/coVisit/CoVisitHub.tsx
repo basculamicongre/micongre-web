@@ -281,7 +281,7 @@ export function CoVisitHub() {
 		<div className="flex flex-col gap-5">
 			<PageHeader
 				title="Visita del SC"
-				subtitle="Agenda de la visita, precursores auxiliares 15h y recomendaciones S-62."
+				subtitle="Agenda de la visita, precursores auxiliares 15h y recomendaciones."
 			/>
 
 			{visits.length === 0 && <p className="px-1 text-sm text-ink-soft">Todavía no hay visitas agendadas.</p>}
@@ -295,7 +295,7 @@ export function CoVisitHub() {
 						options={[
 							{ value: "agenda", label: "Agenda" },
 							{ value: "pioneers", label: "Precursores" },
-							{ value: "s62", label: "S-62" },
+							{ value: "s62", label: "Recomendaciones" },
 						]}
 					/>
 
@@ -347,7 +347,7 @@ export function CoVisitHub() {
 							)}
 
 							<section>
-								<SectionLabel>Notas y hospitalidad (sfg 15:2-3)</SectionLabel>
+								<SectionLabel>Notas y hospitalidad</SectionLabel>
 								<Card className="flex flex-col gap-3">
 									<Input label="Notas" value={notes} onChange={(e) => setNotes(e.target.value)} />
 									{hospitalityRows.map((row, i) => (
@@ -383,7 +383,7 @@ export function CoVisitHub() {
 
 					{tab === "pioneers" && (
 						<section>
-							<SectionLabel>Precursores auxiliares 15h (sfg 15:1)</SectionLabel>
+							<SectionLabel>Precursores auxiliares 15h</SectionLabel>
 							<p className="mb-2 px-1 text-[13px] text-ink-soft">{selectedVisit.circuitOverseerName}</p>
 							<Card className="flex flex-col gap-1">
 								<SelectAllControls
@@ -482,7 +482,7 @@ export function CoVisitHub() {
 				</div>
 			</Modal>
 
-			<Modal open={recModalOpen} onClose={() => setRecModalOpen(false)} title="Nueva recomendación S-62">
+			<Modal open={recModalOpen} onClose={() => setRecModalOpen(false)} title="Nueva recomendación">
 				<div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto pr-1">
 					<Select
 						label="Candidato"
@@ -524,7 +524,7 @@ export function CoVisitHub() {
 								checked={recForm.isReappointment}
 								onChange={() => setRecForm((f) => ({ ...f, isFirstTime: false, isReappointment: true }))}
 							/>
-							Renombramiento (baja en los últimos 5 años, sfg 5:6)
+							Renombramiento (baja en los últimos 5 años)
 						</label>
 					</div>
 					{recForm.isReappointment && (
@@ -549,7 +549,7 @@ export function CoVisitHub() {
 							checked={recForm.previousCongregationLetterAttached}
 							onChange={(e) => setRecForm((f) => ({ ...f, previousCongregationLetterAttached: e.target.checked }))}
 						/>
-						Carta de la congregación anterior adjunta (sfg 5:11)
+						Carta de la congregación anterior adjunta
 					</label>
 
 					<p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
@@ -574,7 +574,7 @@ export function CoVisitHub() {
 							checked={recForm.threeMandatoryQuestionsConfirmed}
 							onChange={(e) => setRecForm((f) => ({ ...f, threeMandatoryQuestionsConfirmed: e.target.checked }))}
 						/>
-						Las 3 preguntas clave del SC fueron confirmadas (sfg 5:8)
+						Las 3 preguntas clave del SC fueron confirmadas
 					</label>
 
 					<Button onClick={handleSaveRecommendation} disabled={recSaving || !recForm.candidateUserId} className="mt-2">

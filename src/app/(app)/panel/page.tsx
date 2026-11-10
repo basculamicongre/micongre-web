@@ -5,6 +5,7 @@ import { getDb } from "@/db/client";
 import { CONGREGATION_ROW_ID, congregations, users } from "@/db/schema";
 import { PanelDashboard } from "@/components/panel/PanelDashboard";
 import { getSession } from "@/lib/auth/session";
+import { canRequestData } from "@/lib/dataRequests/service";
 
 export default async function PanelPage() {
 	const session = await getSession();
@@ -20,7 +21,7 @@ export default async function PanelPage() {
 
 	return (
 		<>
-			<PanelDashboard userId={session.userId} fullName={session.fullName} canReport={me?.status !== "student"} />
+			<PanelDashboard userId={session.userId} fullName={session.fullName} canReport={me?.status !== "student"} canRequestData={canRequestData(session)} />
 			<WelcomeAnimation enabled={!!cong?.enabled} />
 		</>
 	);

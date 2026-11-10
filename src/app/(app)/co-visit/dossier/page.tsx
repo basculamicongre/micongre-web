@@ -28,12 +28,12 @@ export default async function CoVisitDossierPage() {
 	return (
 		<div className="mx-auto flex max-w-3xl flex-col gap-5 print:max-w-none">
 			<div className="print:hidden">
-				<PageHeader title="Paquete S-61" subtitle="Visita del SC" />
+				<PageHeader title="Paquete de la visita" subtitle="Visita del SC" />
 			</div>
 
 			<section className="border border-gray-800 bg-white p-5 text-sm text-gray-900 print:border-black">
 				<h2 className="text-base font-bold uppercase tracking-wide">
-					Concentrado S-21 — Año de servicio {dossier.serviceYear}–{dossier.serviceYear + 1}
+					Concentrado de tarjetas de publicador — Año de servicio {dossier.serviceYear}–{dossier.serviceYear + 1}
 				</h2>
 
 				<h3 className="mt-3 font-semibold">Precursores</h3>
@@ -80,7 +80,7 @@ export default async function CoVisitDossierPage() {
 					</p>
 				))}
 
-				<h3 className="mt-4 font-semibold">Publicadores inactivos (sfg 17:15)</h3>
+				<h3 className="mt-4 font-semibold">Publicadores inactivos</h3>
 				{dossier.inactivePublishers.length === 0 ? (
 					<p className="text-gray-500">Ninguno.</p>
 				) : (
@@ -89,7 +89,7 @@ export default async function CoVisitDossierPage() {
 			</section>
 
 			<section className="border border-gray-800 bg-white p-5 text-sm text-gray-900 print:border-black">
-				<h2 className="text-base font-bold uppercase tracking-wide">Consolidado S-88 — Últimos 12 meses</h2>
+				<h2 className="text-base font-bold uppercase tracking-wide">Consolidado de asistencia — Últimos 12 meses</h2>
 				<table className="mt-2 w-full border-collapse border border-gray-800 text-left">
 					<thead>
 						<tr className="bg-gray-100">
