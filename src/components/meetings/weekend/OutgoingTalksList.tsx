@@ -97,8 +97,10 @@ export function OutgoingTalksList({ weekStart, weekEnd }: { weekStart: string; w
 				</List>
 			)}
 
+			{/* Se monta solo al abrir: así cada «Agregar» empieza con el formulario limpio (antes conservaba lo del anterior). */}
+			{modalOpen && (
 			<OutgoingTalkFormModal
-				open={modalOpen}
+				open
 				weekStart={weekStart}
 				speakers={speakers}
 				congregations={congregations}
@@ -110,6 +112,7 @@ export function OutgoingTalksList({ weekStart, weekEnd }: { weekStart: string; w
 				}}
 				onCongregationSaved={(c) => setCongregations((prev) => upsertCongregation(prev, c))}
 			/>
+			)}
 
 			{editing && (
 				<OutgoingTalkFormModal

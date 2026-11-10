@@ -60,7 +60,7 @@ function needsHelp(a: Assessment) {
 
 const EMPTY_FORM = {
 	groupId: "",
-	reportDate: new Date().toISOString().slice(0, 10),
+	reportDate: "",
 	totalPublishersContacted: 0,
 	injuredCount: 0,
 	missingCount: 0,
@@ -105,7 +105,7 @@ export function DisasterAssessmentsList() {
 	}
 
 	function openCreate() {
-		setForm(EMPTY_FORM);
+		setForm({ ...EMPTY_FORM, reportDate: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) }); // «hoy» al abrir, en la fecha local
 		setModalOpen(true);
 	}
 

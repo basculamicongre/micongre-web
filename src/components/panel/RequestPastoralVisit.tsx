@@ -41,6 +41,13 @@ export function RequestPastoralVisit({
 		load();
 	}, [load]);
 
+	// El formulario lo abre el padre: cada vez empieza limpio (también si antes se canceló).
+	useEffect(() => {
+		if (!formOpen) return;
+		setDate("");
+		setNotes("");
+	}, [formOpen]);
+
 	async function submit() {
 		setSaving(true);
 		await fetch("/api/pastoral/visit-requests/mine", {

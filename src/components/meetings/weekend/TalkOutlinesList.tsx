@@ -171,14 +171,16 @@ export function TalkOutlinesList() {
 				)
 			)}
 
-			<OutlineFormModal
-				open={addOpen}
-				onClose={() => setAddOpen(false)}
-				onSaved={() => {
-					setAddOpen(false);
-					load();
-				}}
-			/>
+			{addOpen && (
+				<OutlineFormModal
+					open
+					onClose={() => setAddOpen(false)}
+					onSaved={() => {
+						setAddOpen(false);
+						load();
+					}}
+				/>
+			)}
 			<EpubOutlineImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImported={load} />
 			<SongsImportDialog open={songsOpen} onClose={() => setSongsOpen(false)} />
 
