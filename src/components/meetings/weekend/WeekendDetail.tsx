@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Save, TowerControl, UserRound } from "lucide-react";
+import { Save } from "lucide-react";
+import { SectionBar } from "@/components/meetings/program/SectionIcon";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -216,10 +217,7 @@ export function WeekendDetail({ meetingId }: { meetingId: string }) {
 			</div>
 
 			<div className={`flex flex-col gap-3 border-t border-border pt-4 ${meeting.watchtowerFirst ? "order-2" : "order-3"}`}>
-				<h3 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-weekend-watchtower">
-					<TowerControl size={16} />
-					La Atalaya
-				</h3>
+				<SectionBar title="La Atalaya" icon="watchtower" bar="bg-meeting-watchtower text-white" className="rounded-[14px]" />
 				<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 					<BrotherSelector
 						label="Conductor de La Atalaya"
@@ -249,10 +247,7 @@ export function WeekendDetail({ meetingId }: { meetingId: string }) {
 			</div>
 
 			<div className={`flex flex-col gap-3 border-t border-border pt-4 ${meeting.watchtowerFirst ? "order-3" : "order-2"}`}>
-				<h3 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-weekend-talk">
-					<UserRound size={16} />
-					Discurso público
-				</h3>
+				<SectionBar title="Discurso público" icon="talk" bar="bg-meeting-talk text-white" className="rounded-[14px]" />
 				<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 					<SpeakerPicker
 						speakerId={meeting.speakerId}

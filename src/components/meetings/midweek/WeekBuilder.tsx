@@ -16,6 +16,7 @@ import type { EligibleUser } from "@/lib/rbac/eligibility";
 import { PRIVILEGE_IDS, SECTION_GROUP_BY_TYPE, SECTION_GROUP_LABELS, SECTION_LABELS } from "@/lib/rbac/roles";
 import { getStudentPartRule, STUDENT_PART_TITLES } from "@/lib/rbac/studentParts";
 import { PageLoader } from "@/components/ui/Spinner";
+import { SectionBar, type SectionIconName } from "@/components/meetings/program/SectionIcon";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 import { CancelledByEvent, CoVisitBanner, MovedByEvent, type MeetingContext } from "@/components/events/MeetingEventBanner";
 
@@ -71,10 +72,11 @@ const REMOVABLE_SECTION_TYPES = ["student_assignment", "living_custom"];
 
 // Clases escritas completas (no interpoladas) para que el scanner de
 // contenido de Tailwind las detecte — ver tailwind.config.ts / globals.css.
-const GROUP_STYLES: Record<(typeof GROUP_ORDER)[number], { header: string; dot: string; soft: string }> = {
-	treasures: { header: "text-mwb-treasures", dot: "bg-mwb-treasures", soft: "bg-mwb-treasures-soft" },
-	ministry: { header: "text-mwb-ministry", dot: "bg-mwb-ministry", soft: "bg-mwb-ministry-soft" },
-	living: { header: "text-mwb-living", dot: "bg-mwb-living", soft: "bg-mwb-living-soft" },
+// Mismos colores e íconos que Reuniones (`MeetingsProgram`) y la app Android.
+const GROUP_STYLES: Record<(typeof GROUP_ORDER)[number], { bar: string; icon: SectionIconName; text: string; soft: string }> = {
+	treasures: { bar: "bg-meeting-treasures text-white", icon: "treasures", text: "text-meeting-treasures", soft: "bg-meeting-treasures-soft" },
+	ministry: { bar: "bg-meeting-ministry text-white", icon: "ministry", text: "text-meeting-ministry", soft: "bg-meeting-ministry-soft" },
+	living: { bar: "bg-meeting-living text-white", icon: "living", text: "text-meeting-living", soft: "bg-meeting-living-soft" },
 };
 
 // Encabezado de una parte: nunca el nombre de la sección. El título de la parte
@@ -362,10 +364,7 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 				const style = GROUP_STYLES[group];
 				return (
 					<section key={group}>
-						<div className={`mb-2 flex items-center gap-2 px-1 text-[13px] font-semibold uppercase tracking-wider ${style.header}`}>
-							<span className={`h-2.5 w-2.5 rounded-full ${style.dot}`} aria-hidden="true" />
-							{SECTION_GROUP_LABELS[group]}
-						</div>
+						<SectionBar title={SECTION_GROUP_LABELS[group]} icon={style.icon} bar={style.bar} className="mb-2 rounded-[14px]" />
 						{group === "living" && (
 							<div className="mb-2">
 								<SongSelect label="Canción" value={meeting.middleSongNumber} onChange={(n) => patchMeeting({ middleSongNumber: n })} />
@@ -527,7 +526,7 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 								<button
 									type="button"
 									onClick={addStudentPart}
-									className={`flex min-h-12 w-full items-center gap-2 px-4 text-sm font-semibold hover:opacity-80 ${style.header} ${style.soft}`}
+									className={`flex min-h-12 w-full items-center gap-2 px-4 text-sm font-semibold hover:opacity-80 ${style.text} ${style.soft}`}
 								>
 									<Plus size={16} />
 									Agregar asignación estudiantil
@@ -537,7 +536,7 @@ export function WeekBuilder({ meetingId }: { meetingId: string }) {
 								<button
 									type="button"
 									onClick={() => setCustomModalOpen(true)}
-									className={`flex min-h-12 w-full items-center gap-2 px-4 text-sm font-semibold hover:opacity-80 ${style.header} ${style.soft}`}
+									className={`flex min-h-12 w-full items-center gap-2 px-4 text-sm font-semibold hover:opacity-80 ${style.text} ${style.soft}`}
 								>
 									<Plus size={16} />
 									Agregar asignación personalizada

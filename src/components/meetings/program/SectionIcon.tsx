@@ -28,3 +28,24 @@ export function SectionIcon({ name, size = 22 }: { name: SectionIconName; size?:
 		</svg>
 	);
 }
+
+/** Barra de sección (texto e ícono en blanco sobre el color de la sección), la misma en Reuniones y en los planificadores. */
+export function SectionBar({
+	title,
+	icon,
+	bar,
+	className = "",
+}: {
+	title: string;
+	icon: SectionIconName;
+	/** Clases completas (no interpoladas) para que Tailwind las detecte, p. ej. `bg-meeting-treasures text-white`. */
+	bar: string;
+	className?: string;
+}) {
+	return (
+		<div className={`flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-bold uppercase tracking-wider ${bar} ${className}`}>
+			<SectionIcon name={icon} />
+			{title}
+		</div>
+	);
+}

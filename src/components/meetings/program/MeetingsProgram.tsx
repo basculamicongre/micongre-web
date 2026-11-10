@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, User, type LucideIcon } from "lucide-react";
-import { SectionIcon, type SectionIconName } from "./SectionIcon";
+import { SectionBar, type SectionIconName } from "./SectionIcon";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/Layout";
 import { InlineLoader } from "@/components/ui/Spinner";
@@ -364,10 +364,14 @@ function Section({
 	return (
 		<section className="overflow-hidden rounded-[20px]">
 			{/* Texto e ícono en blanco sobre el color de la sección (como en la guía impresa y en la app). */}
-			<div className={`flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-bold uppercase tracking-wider ${bar}`}>
-				{typeof Icon === "string" ? <SectionIcon name={Icon} /> : Icon ? <Icon size={22} fill="currentColor" aria-hidden="true" /> : null}
-				{title}
-			</div>
+			{typeof Icon === "string" ? (
+				<SectionBar title={title} icon={Icon} bar={bar} />
+			) : (
+				<div className={`flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-bold uppercase tracking-wider ${bar}`}>
+					{Icon ? <Icon size={22} fill="currentColor" aria-hidden="true" /> : null}
+					{title}
+				</div>
+			)}
 			<div className={`divide-y divide-border/60 ${soft}`}>{children}</div>
 		</section>
 	);
