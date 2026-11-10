@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CalendarDays, Grid2x2, Home, type LucideIcon } from "lucide-react";
+import { Bell, CalendarClock, CalendarDays, Home, Menu, type LucideIcon } from "lucide-react";
 import { visibleGroups } from "./navItems";
 
 interface Tab {
@@ -12,8 +12,8 @@ interface Tab {
 	icon: LucideIcon;
 }
 
-// Barra inferior solo en móvil: Panel, el acceso directo que cada persona elige en su perfil
-// (ninguno por defecto), Avisos y Más.
+// Barra inferior solo en móvil, como la de la app: Panel, Reuniones, el acceso directo que cada persona elige en su perfil
+// (ninguno por defecto), Avisos y Menú.
 export function BottomNav({
 	role,
 	privilegeCodes,
@@ -36,14 +36,20 @@ export function BottomNav({
 	const onCalendar = pathname === "/calendar" || pathname.startsWith("/calendar/");
 	const tabs: Tab[] = [
 		{ key: "panel", href: onPanel ? "/calendar" : "/panel", label: onCalendar ? "Calendario" : "Panel", icon: onCalendar ? CalendarDays : Home },
+		{ key: "meetings", href: "/meetings", label: "Reuniones", icon: CalendarClock },
 		...(shortcutItem ? [{ key: "shortcut", href: shortcutItem.href, label: shortcutItem.label, icon: shortcutItem.icon }] : []),
 		{ key: "notices", href: "/notifications", label: "Avisos", icon: Bell },
-		{ key: "more", href: "/more", label: "Más", icon: Grid2x2 },
+		{ key: "more", href: "/more", label: "Menú", icon: Menu },
 	];
 
 	// «Más» agrupa todo lo que no es una de las otras pestañas (incluido el perfil).
 	const direct = tabs.filter((t) => t.key !== "more");
-	const activeKey = onPanel || onCalendar ? "panel" : (direct.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.key ?? "more");
+	// Reuniones es solo el programa (/meetings); los planificadores (/meetings/midweek…) siguen en «Más».
+	const activeKey = onPanel || onCalendar
+		? "panel"
+		: pathname === "/meetings"
+			? "meetings"
+			: (direct.find((t) => t.key !== "meetings" && (pathname === t.href || pathname.startsWith(`${t.href}/`)))?.key ?? "more");
 
 	return (
 		<nav

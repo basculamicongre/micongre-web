@@ -5,6 +5,28 @@ function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
 	return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+/** iPhone / iPad (los iPad nuevos se presentan como Mac con pantalla táctil). */
+export function isIOS(): boolean {
+	if (typeof navigator === "undefined") return false;
+	return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
+}
+
+/** ¿Abierta desde la pantalla de inicio (como app)? */
+export function isStandalone(): boolean {
+	if (typeof window === "undefined") return false;
+	return window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+/**
+ * Qué se puede hacer con los avisos en este dispositivo: `ready` (se pueden activar), `install` (iPhone/iPad en Safari: primero
+ * hay que agregar Mi Congre a la pantalla de inicio y abrirla desde ahí; iOS 16.4 o más nuevo) o `unsupported`.
+ */
+export function pushAvailability(): "ready" | "install" | "unsupported" {
+	if (isPushSupported()) return "ready";
+	if (isIOS() && !isStandalone()) return "install";
+	return "unsupported";
+}
+
 export function isPushSupported(): boolean {
 	return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
 }

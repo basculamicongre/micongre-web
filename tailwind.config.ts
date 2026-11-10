@@ -41,6 +41,19 @@ export default {
 					living: themed("--mwb-living"),
 					"living-soft": themed("--mwb-living-soft"),
 				},
+				// Vista de Reuniones (/meetings): los colores de las secciones de la app Android.
+				meeting: {
+					treasures: themed("--meeting-treasures"),
+					"treasures-soft": themed("--meeting-treasures-soft"),
+					ministry: themed("--meeting-ministry"),
+					"ministry-soft": themed("--meeting-ministry-soft"),
+					living: themed("--meeting-living"),
+					"living-soft": themed("--meeting-living-soft"),
+					watchtower: themed("--meeting-watchtower"),
+					"watchtower-soft": themed("--meeting-watchtower-soft"),
+					talk: themed("--meeting-talk"),
+					"talk-soft": themed("--meeting-talk-soft"),
+				},
 				weekend: {
 					watchtower: themed("--weekend-watchtower"),
 					"watchtower-soft": themed("--weekend-watchtower-soft"),

@@ -36,12 +36,15 @@ export function MyAssignments({
 	items,
 	emptyLabel,
 	onChange,
+	past = false,
 }: {
 	title: string;
 	items: PanelAssignment[];
 	emptyLabel: string;
 	/** Se llama cuando una acción cambia las asignaciones (p. ej. completar un territorio). */
 	onChange?: () => void;
+	/** Historial: el título va tachado (ya pasó). */
+	past?: boolean;
 }) {
 	const [mapFor, setMapFor] = useState<string | null>(null);
 	const [resolving, setResolving] = useState<{ item: PanelAssignment; status: Resolution } | null>(null);
@@ -99,7 +102,7 @@ export function MyAssignments({
 											{dates} · {MEETING_TYPE_LABEL[item.meetingType]}
 										</p>
 									)}
-									<p className="mt-0.5 text-base font-semibold text-ink">{item.label}</p>
+									<p className={`mt-0.5 text-base font-semibold text-ink ${past ? "line-through" : ""}`}>{item.label}</p>
 									{item.detail && <p className="mt-0.5 whitespace-pre-line text-[13px] text-ink-soft">{item.detail}</p>}
 									{item.departureChoices?.map((c) => (
 										<DepartureSelect key={`${c.sessionId}-${c.territoryId}`} choice={c} many={item.departureChoices!.length > 1} onChanged={onChange} />

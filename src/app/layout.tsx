@@ -20,7 +20,9 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
 	title: "Mi Congre",
 	description: "Administración de congregación",
-	icons: { icon: [{ url: "/logo.svg", type: "image/svg+xml" }], shortcut: "/logo.svg", apple: "/logo.svg" },
+	icons: { icon: [{ url: "/logo.svg", type: "image/svg+xml" }], shortcut: "/logo.svg", apple: "/icons/apple-touch-icon.png" },
+	// Instalable en la pantalla de inicio (en iPhone es lo que permite recibir notificaciones push).
+	appleWebApp: { capable: true, title: "Mi Congre", statusBarStyle: "default" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

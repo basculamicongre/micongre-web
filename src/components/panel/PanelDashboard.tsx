@@ -12,6 +12,7 @@ import { MyGroup } from "./MyGroup";
 import { MyNotifications } from "./MyNotifications";
 import { MyServiceReports } from "./MyServiceReports";
 import { PanelActions } from "./PanelActions";
+import { PushPrompt } from "./PushPrompt";
 import { RegularPioneerCard } from "./RegularPioneerCard";
 import { RequestPastoralVisit } from "./RequestPastoralVisit";
 import { UpcomingEvents } from "./UpcomingEvents";
@@ -93,6 +94,7 @@ export function PanelDashboard({
 
 			{/* Lo primero: si le pidieron actualizar sus datos. */}
 			<DataUpdatePrompt />
+			<PushPrompt />
 
 			<div className="flex flex-col gap-6 lg:grid lg:grid-cols-5 lg:items-start lg:gap-8">
 				<div className="contents lg:col-span-3 lg:min-w-0 lg:flex lg:flex-col lg:gap-6">
@@ -116,7 +118,7 @@ export function PanelDashboard({
 					{history.length > 0 && (
 						// En gris: ya pasaron.
 						<div className="order-9 opacity-60 grayscale">
-							<MyAssignments title="Mi historial" items={history} emptyLabel="Todavía no tienes historial." />
+							<MyAssignments title="Mi historial" items={history} emptyLabel="Todavía no tienes historial." past />
 						</div>
 					)}
 				</div>

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ChevronRight, LogOut, Search, UserPlus, X } from "lucide-react";
 import { removeAccount, switchAccount, useAccounts } from "@/components/auth/useAccounts";
 import { Avatar, List, ListRow, PageHeader, SectionLabel } from "@/components/ui/Layout";
-import { visibleGroups } from "./navItems";
+import { CALENDAR_ITEM, MEETINGS_ITEM, visibleGroups } from "./navItems";
 
 // «Más» (móvil): todos los módulos a los que se tiene acceso, agrupados, con buscador.
 export function MoreMenu({
@@ -23,7 +23,8 @@ export function MoreMenu({
 	const [switchError, setSwitchError] = useState<string | null>(null);
 	const q = query.trim().toLowerCase();
 
-	const groups = visibleGroups(role, privilegeCodes)
+	// Calendario y Reuniones (de todos) primero, como en la app.
+	const groups = [{ label: "General", items: [CALENDAR_ITEM, MEETINGS_ITEM] }, ...visibleGroups(role, privilegeCodes)]
 		.map((g) => ({ ...g, items: g.items.filter((i) => !q || i.label.toLowerCase().includes(q)) }))
 		.filter((g) => g.items.length > 0);
 
@@ -43,7 +44,7 @@ export function MoreMenu({
 
 	return (
 		<div className="flex flex-col gap-5">
-			<PageHeader title="Más" />
+			<PageHeader title="Menú" />
 
 			<label className="flex min-h-12 items-center gap-3 rounded-full bg-surface px-4 text-ink-soft">
 				<Search size={20} />

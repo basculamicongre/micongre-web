@@ -1,14 +1,16 @@
 self.addEventListener("push", (event) => {
-	let data = { title: "MiCongre", body: "" };
+	let data = { title: "Mi Congre", body: "" };
 	try {
 		if (event.data) data = event.data.json();
 	} catch {
-		data = { title: "MiCongre", body: event.data ? event.data.text() : "" };
+		data = { title: "Mi Congre", body: event.data ? event.data.text() : "" };
 	}
 
 	event.waitUntil(
-		self.registration.showNotification(data.title || "MiCongre", {
+		self.registration.showNotification(data.title || "Mi Congre", {
 			body: data.body || "",
+			icon: "/icons/icon-192.png",
+			badge: "/icons/icon-192.png",
 			data: { url: data.url || "/panel" },
 		}),
 	);
