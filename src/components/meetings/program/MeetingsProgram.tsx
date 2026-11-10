@@ -379,10 +379,11 @@ function Section({
 
 function Line({ label, value }: { label: string; value: string | null | undefined }) {
 	return (
-		<div className="flex items-start justify-between gap-3 px-4 py-2.5 text-sm">
-			<span className="w-[45%] shrink-0 text-ink-soft">{label}</span>
-			<span className="min-w-0 flex-1 text-right font-medium text-ink">{value?.trim() ? value : "Sin asignar"}</span>
-		</div>
+		// Mismo formato que las partes: «Etiqueta: Nombre» (nombre en negrita).
+		<p className="px-4 py-2.5 text-sm">
+			<span className="text-ink-soft">{label}: </span>
+			<span className="font-semibold text-ink">{value?.trim() ? value : "Sin asignar"}</span>
+		</p>
 	);
 }
 
@@ -412,7 +413,7 @@ function PartRow({
 			{lines.map(([label, value]) => (
 				<p key={label} className="mt-1 text-sm">
 					<span className="text-ink-soft">{label}: </span>
-					<span className="font-medium text-ink">{value?.trim() ? value : "Sin asignar"}</span>
+					<span className="font-semibold text-ink">{value?.trim() ? value : "Sin asignar"}</span>
 				</p>
 			))}
 			{timerKey && <TimerLine timerKey={timerKey} className="mt-1.5" />}
