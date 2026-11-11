@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
-import { activeHref, canSee, NAV_GROUPS, NOTICES_ITEM, PANEL_ITEM, visibleGroups, type NavItem } from "./navItems";
+import { activeHref, canSee, NAV_GROUPS, TOP_ITEMS, visibleGroups, type NavItem } from "./navItems";
 
 // Menú lateral solo en pantallas anchas; en móvil se navega con la barra inferior y «Más».
 // Las agrupaciones son un acordeón: se expande una sola a la vez para que el menú no crezca.
@@ -20,7 +20,7 @@ export function Sidebar({
 }) {
 	const pathname = usePathname();
 	const groups = visibleGroups(role, privilegeCodes);
-	const top = [PANEL_ITEM, NOTICES_ITEM].filter((i) => canSee(i, role, privilegeCodes));
+	const top = TOP_ITEMS.filter((i) => canSee(i, role, privilegeCodes));
 	const active = activeHref(pathname, [...top, ...NAV_GROUPS.flatMap((g) => g.items)].map((i) => i.href));
 	const activeGroup = groups.find((g) => g.items.some((i) => i.href === active))?.label ?? null;
 

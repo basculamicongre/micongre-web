@@ -11,7 +11,7 @@ import { getSetupStatus } from "@/lib/setup/status";
 export const config = {
 	// Archivos de public/ que se piden sin sesión (logo del login/activación/setup y el service worker): fuera del middleware.
 	// En producción Cloudflare los sirve antes del Worker; en `next dev` el middleware los mandaba al login.
-	matcher: ["/((?!_next|favicon.ico|logo.svg|sw.js).*)"],
+	matcher: ["/((?!_next|favicon.ico|logo.svg|sw.js|manifest.webmanifest|icons/).*)"],
 };
 
 // Rutas que no exigen sesión. El asistente de configuración (/setup, /api/setup)

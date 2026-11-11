@@ -53,8 +53,8 @@ async function sendViaRelay(
 	return { sent, dead };
 }
 
-/** Punto único de envío de push: cada elemento lleva su destinatario y su mensaje. Con Firebase configurado envía por
- * FCM a los dispositivos Android; si no, por Web Push a los navegadores suscritos. Nunca lanza — un push fallido no
+/** Punto único de envío de push: cada elemento lleva su destinatario y su mensaje. Envía a la app Android (FCM o relay) Y
+ * a los navegadores suscritos (Web Push), a todos los que tenga la persona. Nunca lanza — un push fallido no
  * debe tumbar la mutación que lo disparó; los errores solo se registran y un destino vencido se borra solo. */
 export async function sendPushes(db: Database, items: { userId: string; payload: PushPayload }[]): Promise<number> {
 	if (items.length === 0) return 0;
@@ -83,10 +83,7 @@ export async function sendPushes(db: Database, items: { userId: string; payload:
 			);
 		}
 		for (const ids of chunked(dead)) await db.delete(deviceTokens).where(inArray(deviceTokens.id, ids));
-		return sent;
-	}
-
-	if (relayConfigured(env)) {
+	} else if (relayConfigured(env)) {
 		const tokens = (
 			await Promise.all(chunked(userIds).map((ids) => db.select().from(deviceTokens).where(inArray(deviceTokens.userId, ids))))
 		).flat();
@@ -94,10 +91,12 @@ export async function sendPushes(db: Database, items: { userId: string; payload:
 		const messages = await Promise.all(tokens.map(async (t) => ({ token: t.token, data: await buildPushData({ ...payloadByUser.get(t.userId)!, uid: t.userId }, t.publicKey) })));
 		const { sent: relaySent, dead } = await sendViaRelay(env, messages);
 		if (dead.length > 0) for (const part of chunked(dead)) await db.delete(deviceTokens).where(inArray(deviceTokens.token, part));
-		return relaySent;
+		sent += relaySent;
 	}
 
-	if (!env.VAPID_PRIVATE_KEY_JWK || !env.VAPID_PUBLIC_KEY) return 0;
+	// Además de la app de Android, cada navegador suscrito (Windows, Mac, iPhone/iPad con la web en la pantalla de inicio) recibe su
+	// aviso por Web Push. Antes, si había FCM o relay, la función terminaba ahí y los navegadores nunca recibían nada.
+	if (!env.VAPID_PRIVATE_KEY_JWK || !env.VAPID_PUBLIC_KEY) return sent;
 	const vapid = { publicKey: env.VAPID_PUBLIC_KEY, privateKeyJwk: env.VAPID_PRIVATE_KEY_JWK, subject: env.VAPID_SUBJECT };
 	const subs = (
 		await Promise.all(chunked(userIds).map((ids) => db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, ids))))

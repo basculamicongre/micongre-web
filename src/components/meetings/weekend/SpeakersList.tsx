@@ -272,12 +272,14 @@ export function SpeakersList() {
 				</div>
 			</Modal>
 
-			<AddArrangementModal
-				open={arrangementModalOpen}
-				onClose={() => setArrangementModalOpen(false)}
-				congregations={congregations}
-				onAdded={() => setArrangementsRefresh((n) => n + 1)}
-			/>
+			{arrangementModalOpen && (
+				<AddArrangementModal
+					open
+					onClose={() => setArrangementModalOpen(false)}
+					congregations={congregations}
+					onAdded={() => setArrangementsRefresh((n) => n + 1)}
+				/>
+			)}
 
 			<DirectoryModal
 				open={directoryOpen}
@@ -285,18 +287,20 @@ export function SpeakersList() {
 				onAdded={(c) => setCongregations((prev) => upsertCongregation(prev, c))}
 			/>
 
-			<SpeakerFormModal
-				open={modalOpen}
-				onClose={() => setModalOpen(false)}
-				outlines={outlines}
-				songs={songs}
-				congregations={congregations}
-				onSaved={() => {
-					setModalOpen(false);
-					load();
-				}}
-				onCongregationSaved={(c) => setCongregations((prev) => upsertCongregation(prev, c))}
-			/>
+			{modalOpen && (
+				<SpeakerFormModal
+					open
+					onClose={() => setModalOpen(false)}
+					outlines={outlines}
+					songs={songs}
+					congregations={congregations}
+					onSaved={() => {
+						setModalOpen(false);
+						load();
+					}}
+					onCongregationSaved={(c) => setCongregations((prev) => upsertCongregation(prev, c))}
+				/>
+			)}
 
 			{editingSpeaker && (
 				<EditSpeakerModal

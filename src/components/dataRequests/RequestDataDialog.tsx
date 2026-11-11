@@ -42,6 +42,11 @@ export function RequestDataDialog({ open, onClose }: { open: boolean; onClose: (
 		setOptions(null);
 		setResult(null);
 		setError(null);
+		// El diálogo queda montado entre aperturas: cada vez empieza limpio.
+		setKind("personal");
+		setScope("user");
+		setGroupId("");
+		setQuery("");
 		setSelected(new Set());
 		fetch("/api/data-requests")
 			.then((r) => (r.ok ? (r.json() as Promise<Options>) : null))

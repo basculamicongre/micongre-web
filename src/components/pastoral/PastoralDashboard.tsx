@@ -115,20 +115,21 @@ const ASSISTANCE_STATUS_LABELS: Record<string, string> = {
 	RESOLVED: "Resuelta",
 };
 
-const EMPTY_VISIT_FORM = {
+// Funciones (no constantes): «hoy» se toma al abrir el formulario, en la fecha local.
+const emptyVisitForm = () => ({
 	publisherId: "",
-	dateVisited: new Date().toISOString().slice(0, 10),
+	dateVisited: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10),
 	eldersAssigned: [] as string[],
 	scripturesConsidered: "",
 	followUpNeeded: false,
 	confidentialNotes: "",
-};
+});
 
-const EMPTY_ASSISTANCE_FORM = {
+const emptyAssistanceForm = () => ({
 	publisherId: "",
 	type: "MEDICAL_HLC",
-	requestDate: new Date().toISOString().slice(0, 10),
-};
+	requestDate: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10),
+});
 
 export function PastoralDashboard() {
 	const [tab, setTab] = useState<"priority" | "requests" | "visits">("priority");
@@ -151,11 +152,11 @@ export function PastoralDashboard() {
 	const [assignError, setAssignError] = useState<string | null>(null);
 
 	const [visitModalOpen, setVisitModalOpen] = useState(false);
-	const [visitForm, setVisitForm] = useState(EMPTY_VISIT_FORM);
+	const [visitForm, setVisitForm] = useState(emptyVisitForm);
 	const [visitSaving, setVisitSaving] = useState(false);
 
 	const [assistanceModalOpen, setAssistanceModalOpen] = useState(false);
-	const [assistanceForm, setAssistanceForm] = useState(EMPTY_ASSISTANCE_FORM);
+	const [assistanceForm, setAssistanceForm] = useState(emptyAssistanceForm);
 	const [assistanceSaving, setAssistanceSaving] = useState(false);
 
 	const load = useCallback(async () => {
@@ -204,7 +205,7 @@ export function PastoralDashboard() {
 	const publisherName = (id: string) => publishers.find((p) => p.id === id)?.fullName ?? "—";
 
 	function openCreateVisit(publisherId?: string) {
-		setVisitForm(publisherId ? { ...EMPTY_VISIT_FORM, publisherId } : EMPTY_VISIT_FORM);
+		setVisitForm(publisherId ? { ...emptyVisitForm(), publisherId } : emptyVisitForm());
 		setVisitModalOpen(true);
 	}
 
@@ -271,7 +272,7 @@ export function PastoralDashboard() {
 	}
 
 	function openCreateAssistance() {
-		setAssistanceForm(EMPTY_ASSISTANCE_FORM);
+		setAssistanceForm(emptyAssistanceForm());
 		setAssistanceModalOpen(true);
 	}
 

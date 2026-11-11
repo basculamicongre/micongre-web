@@ -49,6 +49,14 @@ export async function rotateRefreshToken(
 			const raceResult = await tryRaceTolerantAccessToken(db, row.replacedByTokenId, jwtSecret);
 			if (raceResult) return raceResult;
 		}
+		// Respuesta perdida: el servidor rotó pero el cliente nunca recibió (o nunca guardó) el token nuevo —se cayó la red justo
+		// después, la app se cerró a media renovación o se estaba actualizando— y vuelve con el anterior. Se reconoce porque el
+		// sucesor NUNCA se ha usado (sigue sin rotar): nadie más tiene ese token, así que se rota desde él para este cliente en vez de
+		// cerrar todas las sesiones. Si el sucesor ya se usó, sí es reuso y se corta todo como siempre.
+		if (row.replacedByTokenId) {
+			const [successor] = await db.select().from(refreshTokens).where(eq(refreshTokens.id, row.replacedByTokenId)).limit(1);
+			if (successor && !successor.revokedAt && successor.userId === row.userId) return rotateRow(db, successor, jwtSecret);
+		}
 		// Reuso de un token ya rotado/revocado (fuera de la ventana de carrera
 		// concurrente de arriba): posible robo — se corta toda la sesión.
 		await db
@@ -58,6 +66,11 @@ export async function rotateRefreshToken(
 		return { ok: false, error: "reused" };
 	}
 
+	return rotateRow(db, row, jwtSecret);
+}
+
+/** Rota un token vigente: crea el siguiente, revoca este apuntando al nuevo y emite el access token. */
+async function rotateRow(db: Database, row: typeof refreshTokens.$inferSelect, jwtSecret: string): Promise<RefreshResult> {
 	if (row.expiresAt.getTime() < Date.now()) return { ok: false, error: "expired" };
 
 	const [user] = await db.select().from(users).where(eq(users.id, row.userId)).limit(1);

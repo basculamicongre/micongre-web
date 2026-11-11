@@ -29,6 +29,17 @@
 	--weekend-watchtower-soft: #e6e4fb;
 	--weekend-talk: #0f766e;
 	--weekend-talk-soft: #dcf5f1;
+	/* Barras de sección de la vista de Reuniones (/meetings): los mismos colores que la app Android (ui/theme/Theme.kt, LightExtras). */
+	--meeting-treasures: #2a6b77;
+	--meeting-treasures-soft: #e2eef0;
+	--meeting-ministry: #9b6d17;
+	--meeting-ministry-soft: #f6efd6;
+	--meeting-living: #942926;
+	--meeting-living-soft: #fbe7e6;
+	--meeting-watchtower: #133268;
+	--meeting-watchtower-soft: #e3e8f3;
+	--meeting-talk: #4a5a66;
+	--meeting-talk-soft: #e8ecef;
 }
 
 body {
@@ -51,6 +62,17 @@ body {
 	--weekend-watchtower-soft: #2a2750;
 	--weekend-talk: #5eead4;
 	--weekend-talk-soft: #163330;
+	/* DarkExtras de la app Android. */
+	--meeting-treasures: #3c7f8b;
+	--meeting-treasures-soft: #1a3034;
+	--meeting-ministry: #b07a12;
+	--meeting-ministry-soft: #362a14;
+	--meeting-living: #a8342e;
+	--meeting-living-soft: #3a1c1e;
+	--meeting-watchtower: #1e4382;
+	--meeting-watchtower-soft: #18223a;
+	--meeting-talk: #5b6b78;
+	--meeting-talk-soft: #252c32;
 }
 
 /* Salvia — el acento por defecto */

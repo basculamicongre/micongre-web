@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { List } from "@/components/ui/Layout";
-import { getExistingSubscription, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push/client";
+import { getExistingSubscription, isPushSupported, pushAvailability, subscribeToPush, unsubscribeFromPush } from "@/lib/push/client";
+import { IosInstallSteps } from "./PushPrompt";
 
 export function PushToggle() {
 	const [supported, setSupported] = useState(true);
+	const [needsInstall, setNeedsInstall] = useState(false);
 	const [subscribed, setSubscribed] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [busy, setBusy] = useState(false);
@@ -14,6 +16,7 @@ export function PushToggle() {
 	useEffect(() => {
 		(async () => {
 			if (!isPushSupported()) {
+				setNeedsInstall(pushAvailability() === "install");
 				setSupported(false);
 				setLoading(false);
 				return;
@@ -45,7 +48,19 @@ export function PushToggle() {
 		setBusy(false);
 	}
 
-	if (!supported || loading) return null;
+	if (loading) return null;
+	// iPhone/iPad en Safari: los avisos solo llegan si Mi Congre se abre desde la pantalla de inicio.
+	if (!supported && needsInstall)
+		return (
+			<List>
+				<div className="flex flex-col gap-2 px-4 py-3">
+					<p className="text-base text-ink">Notificaciones en este dispositivo</p>
+					<p className="text-[13px] text-ink-soft">En iPhone y iPad, primero agrega Mi Congre a tu pantalla de inicio:</p>
+					<IosInstallSteps />
+				</div>
+			</List>
+		);
+	if (!supported) return null;
 
 	return (
 		<List>

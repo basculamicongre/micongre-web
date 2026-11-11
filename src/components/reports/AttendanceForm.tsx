@@ -114,3 +114,6 @@ export function AttendanceForm({
 		</div>
 	);
 }
+
+/** El mismo contador lo usa el botón de asistencia de Reuniones (`components/meetings/program`). */
+export { Counter as AttendanceCounter };

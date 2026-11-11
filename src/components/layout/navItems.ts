@@ -40,6 +40,12 @@ export interface NavGroup {
 
 export const PANEL_ITEM: NavItem = { href: "/panel", label: "Mi panel", icon: Home };
 export const NOTICES_ITEM: NavItem = { href: "/notifications", label: "Avisos", icon: Bell };
+/** Para toda la congregación (cada quien ve lo suyo): van arriba, justo después de Mi panel, como en la app. */
+export const CALENDAR_ITEM: NavItem = { href: "/calendar", label: "Calendario", icon: CalendarRange };
+/** Programa de las reuniones en solo lectura (con cronómetro y asistencia para quien le toca), igual que la pestaña de la app. */
+export const MEETINGS_ITEM: NavItem = { href: "/meetings", label: "Reuniones", icon: CalendarClock };
+/** Lo de arriba del menú (barra lateral y «Menú»). */
+export const TOP_ITEMS: NavItem[] = [PANEL_ITEM, CALENDAR_ITEM, MEETINGS_ITEM, NOTICES_ITEM];
 export const TERRITORIES_ITEM: NavItem = {
 	href: "/territories",
 	label: "Territorios",
@@ -82,8 +88,6 @@ export const NAV_GROUPS: NavGroup[] = [
 	{
 		label: "Reuniones y servicio",
 		items: [
-			// Para toda la congregación (cada quien ve lo suyo).
-			{ href: "/calendar", label: "Calendario", icon: CalendarRange },
 			{
 				href: "/meetings/midweek",
 				label: "Entre semana",
