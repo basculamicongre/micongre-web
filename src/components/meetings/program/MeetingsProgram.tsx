@@ -360,7 +360,7 @@ function Section({
 				<SectionBar title={title} icon={Icon} bar={bar} />
 			) : (
 				<div className={`flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-bold uppercase tracking-wider ${bar}`}>
-					{Icon ? <Icon size={22} fill="currentColor" aria-hidden="true" /> : null}
+					{Icon ? <Icon size={22} strokeWidth={2.25} aria-hidden="true" /> : null}
 					{title}
 				</div>
 			)}
@@ -476,7 +476,8 @@ function OperationalSection({ items }: { items: OperationalItem[] }) {
 	const group = (title: string, list: OperationalItem[]) =>
 		list.length > 0 && (
 			<div className="py-1">
-				<p className="px-4 pt-2 text-[13px] font-semibold text-ink-soft">{title}</p>
+				{/* El subtítulo solo hace falta si hay de los dos grupos (si no, repetiría «Acomodadores»). */}
+				{av.length > 0 && ushers.length > 0 && <p className="px-4 pt-2 text-[13px] font-semibold text-ink-soft">{title}</p>}
 				{list.map((i) => (
 					<Line key={i.id} label={label(i)} value={i.assignedUserName} />
 				))}
