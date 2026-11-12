@@ -123,14 +123,6 @@ type Loaded =
 	| { type: "none" }
 	| { type: "error" };
 
-const STATUS_LABEL: Record<string, string> = {
-	scheduled: "Programada",
-	cancelled: "Cancelada",
-	cancelled_assembly: "Cancelada (asamblea)",
-	cancelled_memorial: "Cancelada (conmemoración)",
-	adjusted_co_visit: "Ajustada (visita SC)",
-};
-
 const TIMED_STATUSES = new Set(["scheduled", "adjusted_co_visit"]);
 
 /** Lunes (ISO) de la semana de hoy, con la fecha local del navegador (no la de UTC). */
@@ -368,7 +360,7 @@ function Section({
 				<SectionBar title={title} icon={Icon} bar={bar} />
 			) : (
 				<div className={`flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-bold uppercase tracking-wider ${bar}`}>
-					{Icon ? <Icon size={22} fill="currentColor" aria-hidden="true" /> : null}
+					{Icon ? <Icon size={22} strokeWidth={2.25} aria-hidden="true" /> : null}
 					{title}
 				</div>
 			)}
@@ -479,11 +471,13 @@ function OperationalSection({ items }: { items: OperationalItem[] }) {
 	const isAv = (i: OperationalItem) => i.privilegeId === "priv_audio_console" || i.privilegeId === "priv_video_zoom";
 	const av = assigned.filter(isAv);
 	const ushers = assigned.filter((i) => !isAv(i));
-	const label = (i: OperationalItem) => i.privilegeName + (i.position?.trim() ? ` — ${i.position}` : "");
+	// Si la asignación tiene nombre en la plantilla, ese nombre en lugar del de la tarea (como `slotDisplayName`).
+	const label = (i: OperationalItem) => i.position?.trim() || i.privilegeName;
 	const group = (title: string, list: OperationalItem[]) =>
 		list.length > 0 && (
 			<div className="py-1">
-				<p className="px-4 pt-2 text-[13px] font-semibold text-ink-soft">{title}</p>
+				{/* El subtítulo solo hace falta si hay de los dos grupos (si no, repetiría «Acomodadores»). */}
+				{av.length > 0 && ushers.length > 0 && <p className="px-4 pt-2 text-[13px] font-semibold text-ink-soft">{title}</p>}
 				{list.map((i) => (
 					<Line key={i.id} label={label(i)} value={i.assignedUserName} />
 				))}
@@ -535,12 +529,11 @@ function MidweekView({ detail: d, ops }: { detail: MidweekDetail; ops: Operation
 			<MeetingTitle date={date} subtitle={m.weekLabel} />
 			{d.event?.action === "move" && <MovedNote event={d.event} date={d.date} time={d.time} />}
 			{co && <CoVisitNote co={co} midweek />}
-			<div className="divide-y divide-border rounded-[20px] bg-surface py-1">
+			<div className="rounded-[20px] bg-surface py-1">
 				<Line label="Presidente" value={m.chairmanName} />
 				{/* Las oraciones solo se muestran si ya hay alguien asignado. */}
 				{!d.skipOpeningPrayer && m.openingPrayerName?.trim() && <Line label="Oración inicial" value={m.openingPrayerName} />}
 				{finalPrayer?.trim() && <Line label="Oración final" value={finalPrayer} />}
-				<Line label="Estado" value={STATUS_LABEL[m.status] ?? m.status} />
 			</div>
 
 			{/* Cada canción va en su lugar del programa: inicial antes de Tesoros, intermedia en Nuestra vida cristiana y final al cierre. */}
@@ -696,10 +689,9 @@ function WeekendView({ detail: wd, ops }: { detail: WeekendDetail; ops: Operatio
 			<MeetingTitle date={date} />
 			{wd.event?.action === "move" && <MovedNote event={wd.event} date={wd.date} time={wd.time} />}
 			{co && <CoVisitNote co={co} midweek={false} />}
-			<div className="divide-y divide-border rounded-[20px] bg-surface py-1">
+			<div className="rounded-[20px] bg-surface py-1">
 				<Line label="Presidente" value={m.chairmanName} />
 				{m.prayerName?.trim() && <Line label="Oración" value={m.prayerName} />}
-				<Line label="Estado" value={STATUS_LABEL[m.status] ?? m.status} />
 			</div>
 			{/* Normalmente se empieza con la canción y el discurso; a veces con La Atalaya y el discurso va después. */}
 			{m.watchtowerFirst ? (

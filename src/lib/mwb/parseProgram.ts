@@ -64,7 +64,7 @@ function decodeEntities(text: string): string {
 /** Convierte el encabezado de una semana ("6-12 de julio" / "28 de
  * septiembre a 4 de octubre") en la fecha ISO de su lunes, usando el año del
  * número (`issue`, formato YYYYMM) del que se descargó el archivo. */
-function parseWeekStartFromTitle(title: string, issue: string): string | null {
+export function parseWeekStartFromTitle(title: string, issue: string): string | null {
 	const issueYear = Number(issue.slice(0, 4));
 
 	const sameMonth = title.match(/^(\d{1,2})\s*[-–]\s*\d{1,2}\s+de\s+([a-záéíóúñ]+)$/iu);
@@ -74,11 +74,15 @@ function parseWeekStartFromTitle(title: string, issue: string): string | null {
 		return toISODate(new Date(Date.UTC(issueYear, month - 1, Number(sameMonth[1]))));
 	}
 
-	const crossMonth = title.match(/^(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+a\s+\d{1,2}\s+de\s+([a-záéíóúñ]+)$/iu);
+	// La semana que cruza el año trae los años: "29 de diciembre de 2025 a 4 de enero de 2026".
+	const crossMonth = title.match(
+		/^(\d{1,2})\s+de\s+([a-záéíóúñ]+)(?:\s+de\s+(\d{4}))?\s+a\s+\d{1,2}\s+de\s+([a-záéíóúñ]+)(?:\s+de\s+\d{4})?$/iu,
+	);
 	if (crossMonth) {
 		const month = SPANISH_MONTHS[crossMonth[2].toLowerCase()];
 		if (!month) return null;
-		return toISODate(new Date(Date.UTC(issueYear, month - 1, Number(crossMonth[1]))));
+		const year = crossMonth[3] ? Number(crossMonth[3]) : issueYear;
+		return toISODate(new Date(Date.UTC(year, month - 1, Number(crossMonth[1]))));
 	}
 
 	return null;
