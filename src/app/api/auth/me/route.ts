@@ -21,6 +21,8 @@ export async function GET() {
 			systemRole: users.systemRole,
 			fieldServiceGroupId: users.fieldServiceGroupId,
 			navShortcut: users.navShortcut,
+			// La app la usa para el widget de predicación (la caminata de hermanos a los hombres y la de hermanas a las mujeres).
+			gender: users.gender,
 		})
 		.from(users)
 		.where(eq(users.id, session.userId))
