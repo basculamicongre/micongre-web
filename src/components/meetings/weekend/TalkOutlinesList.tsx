@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Music, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { IconButton, List, ListRow, SectionLabel } from "@/components/ui/Layout";
+import { List, ListRow, SectionLabel } from "@/components/ui/Layout";
 import { formatShortDate } from "@/lib/dateFormat";
 import { EpubOutlineImportDialog } from "./EpubOutlineImportDialog";
 import { SongsImportDialog } from "./SongsImportDialog";
@@ -60,14 +60,15 @@ function formatLastGiven(date: string | null): string | null {
 	return formatShortDate(date);
 }
 
-export function TalkOutlinesList() {
+/** Qué importador está abierto: los botones van arriba, en el encabezado del módulo (ver WeekendModule). */
+export type OutlinesImport = "outlines" | "songs" | null;
+
+export function TalkOutlinesList({ importing, onImportingChange }: { importing: OutlinesImport; onImportingChange: (v: OutlinesImport) => void }) {
 	const [outlines, setOutlines] = useState<Outline[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 	const [sortBy, setSortBy] = useState<SortBy>("number");
 	const [addOpen, setAddOpen] = useState(false);
-	const [importOpen, setImportOpen] = useState(false);
-	const [songsOpen, setSongsOpen] = useState(false);
 	const [editing, setEditing] = useState<Outline | null>(null);
 
 	useEffect(() => {
@@ -118,8 +119,6 @@ export function TalkOutlinesList() {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-end gap-1">
-				<IconButton label="Importar catálogo de bosquejos (EPUB)" icon={BookOpen} onClick={() => setImportOpen(true)} />
-				<IconButton label="Importar canciones (JW.ORG o EPUB)" icon={Music} onClick={() => setSongsOpen(true)} />
 				<Button onClick={() => setAddOpen(true)}>
 					<Plus size={16} />
 					Agregar bosquejo
@@ -181,8 +180,8 @@ export function TalkOutlinesList() {
 					}}
 				/>
 			)}
-			<EpubOutlineImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImported={load} />
-			<SongsImportDialog open={songsOpen} onClose={() => setSongsOpen(false)} />
+			<EpubOutlineImportDialog open={importing === "outlines"} onClose={() => onImportingChange(null)} onImported={load} />
+			<SongsImportDialog open={importing === "songs"} onClose={() => onImportingChange(null)} />
 
 			{editing && (
 				<OutlineFormModal

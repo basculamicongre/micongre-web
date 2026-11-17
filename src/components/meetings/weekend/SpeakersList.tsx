@@ -107,6 +107,8 @@ export function SpeakersList() {
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 	const [kindFilter, setKindFilter] = useState<"all" | "local" | "visiting" | "congregations" | "arrangements">("all");
+	// Activo / inactivo (la marca de cada orador; los inactivos no se ofrecen para los discursos que salen).
+	const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 	const [modalOpen, setModalOpen] = useState(false);
 	const [congregationModalOpen, setCongregationModalOpen] = useState(false);
 	const [directoryAvailable, setDirectoryAvailable] = useState(false);
@@ -144,6 +146,8 @@ export function SpeakersList() {
 
 	const filtered = speakers.filter((s) => {
 		if ((kindFilter === "local" || kindFilter === "visiting") && s.kind !== kindFilter) return false;
+		if (statusFilter === "active" && !s.active) return false;
+		if (statusFilter === "inactive" && s.active) return false;
 		if (search && !s.fullName.toLowerCase().includes(search.toLowerCase())) return false;
 		return true;
 	});
@@ -188,6 +192,16 @@ export function SpeakersList() {
 				))}
 			</ChipGroup>
 
+			{(kindFilter === "all" || kindFilter === "local" || kindFilter === "visiting") && (
+				<ChipGroup>
+					{(["all", "active", "inactive"] as const).map((k) => (
+						<Chip key={k} active={statusFilter === k} onClick={() => setStatusFilter(k)}>
+							{k === "all" ? "Activos e inactivos" : k === "active" ? "Activos" : "Inactivos"}
+						</Chip>
+					))}
+				</ChipGroup>
+			)}
+
 			{kindFilter === "congregations" ? (
 				<CongregationsTable
 					congregations={congregations}
@@ -207,7 +221,7 @@ export function SpeakersList() {
 					{loading && <PageLoader />}
 					{!loading && filtered.length === 0 && (
 						<Card>
-							<p className="text-sm text-ink-soft">No hay oradores registrados.</p>
+							<p className="text-sm text-ink-soft">{speakers.length === 0 ? "No hay oradores registrados." : "Ningún orador coincide con el filtro."}</p>
 						</Card>
 					)}
 					{!loading && filtered.length > 0 && (
@@ -229,7 +243,7 @@ export function SpeakersList() {
 										>
 											<div className="flex flex-wrap items-center gap-2 text-base font-semibold text-ink">
 												{speaker.fullName}
-												{!speaker.active && <Badge tone="neutral">Inactivo</Badge>}
+												{speaker.active ? <Badge tone="success">Activo</Badge> : <Badge tone="neutral">Inactivo</Badge>}
 											</div>
 											<div className="mt-0.5 text-[13px] text-ink-soft">{where}</div>
 											<div className="mt-1.5 flex flex-wrap gap-1">
