@@ -14,7 +14,7 @@ const bodySchema = z.object({
 	purpose: z.enum(["initial_setup", "password_reset", "circuit_overseer_visit"]).optional(),
 	// Requerido cuando purpose = "circuit_overseer_visit" — el enlace (y toda
 	// la sesión) vence en co_visit_schedules.endDate para esa visita.
-	visitId: z.string().uuid().optional(),
+	visitId: z.guid().optional(),
 });
 
 // Genera el enlace de un solo toque que el admin comparte fuera de banda

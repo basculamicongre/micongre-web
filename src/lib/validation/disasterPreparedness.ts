@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const createAssessmentSchema = z.object({
-	groupId: z.string().uuid(),
+	groupId: z.guid(),
 	reportDate: z.string().min(1),
 	totalPublishersContacted: z.number().int().nonnegative().default(0),
 	injuredCount: z.number().int().nonnegative().default(0),

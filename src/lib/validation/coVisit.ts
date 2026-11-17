@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 import { CO_RECOMMENDATION_DECISIONS, CO_RECOMMENDATION_OFFICES } from "@/db/schema";
 
 const hospitalityDaySchema = z.object({
@@ -24,12 +25,12 @@ export const createVisitSchema = z.object({
 	finalTalkSong: z.number().int().min(1).max(200).nullish(),
 });
 
-export const updateVisitSchema = createVisitSchema.partial();
+export const updateVisitSchema = patchSchema(createVisitSchema);
 
 // Mismo patrón "conjunto completo deseado, diff en el servidor" que
 // setAppointmentsSchema/setPrivilegesSchema (src/lib/validation/appointments.ts).
 export const setAuxiliaryPioneersSchema = z.object({
-	userIds: z.array(z.string().uuid()),
+	userIds: z.array(z.guid()),
 });
 
 // Checklist fijo de 1 Tim. 3 / Tito 1 — no exhaustivo del texto bíblico, un
@@ -48,8 +49,8 @@ export const biblicalQualificationsSchema = z.object({
 });
 
 export const createRecommendationSchema = z.object({
-	visitId: z.string().uuid().optional().nullable(),
-	candidateUserId: z.string().uuid(),
+	visitId: z.guid().optional().nullable(),
+	candidateUserId: z.guid(),
 	recommendedOffice: z.enum(CO_RECOMMENDATION_OFFICES),
 	isFirstTime: z.boolean().default(false),
 	isReappointment: z.boolean().default(false),
@@ -60,7 +61,7 @@ export const createRecommendationSchema = z.object({
 	threeMandatoryQuestionsConfirmed: z.boolean().default(false),
 });
 
-export const updateRecommendationSchema = createRecommendationSchema.partial();
+export const updateRecommendationSchema = patchSchema(createRecommendationSchema);
 
 // Única escritura permitida al SC en el paquete S-62 — ver
 // assertCanAccessCoVisitDossier en src/lib/rbac/guards.ts.

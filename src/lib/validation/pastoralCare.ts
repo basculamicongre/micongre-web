@@ -1,38 +1,39 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 import { ASSISTANCE_STATUSES, ASSISTANCE_TYPES } from "@/db/schema";
 
 const RESOLVED_VISIT_REQUEST_STATUSES = ["completed", "cancelled", "postponed"] as const;
 
 export const createVisitSchema = z.object({
-	publisherId: z.string().uuid(),
+	publisherId: z.guid(),
 	dateVisited: z.string().min(1),
-	eldersAssigned: z.array(z.string().uuid()).min(1),
+	eldersAssigned: z.array(z.guid()).min(1),
 	scripturesConsidered: z.string().optional().nullable(),
 	followUpNeeded: z.boolean().default(false),
 	confidentialNotes: z.string().optional().nullable(),
 });
 
-export const updateVisitSchema = createVisitSchema.partial();
+export const updateVisitSchema = patchSchema(createVisitSchema);
 
 export const updateVisitVisibilitySchema = z.object({
 	visibleToAllElders: z.boolean(),
 });
 
 export const createFlagSchema = z.object({
-	publisherId: z.string().uuid(),
+	publisherId: z.guid(),
 	reason: z.string().min(1),
 });
 
 export const createAssistanceRequestSchema = z.object({
-	publisherId: z.string().uuid(),
+	publisherId: z.guid(),
 	type: z.enum(ASSISTANCE_TYPES),
 	requestDate: z.string().min(1),
-	assignedElders: z.array(z.string().uuid()).optional().nullable(),
+	assignedElders: z.array(z.guid()).optional().nullable(),
 });
 
 export const updateAssistanceRequestSchema = z.object({
 	status: z.enum(ASSISTANCE_STATUSES).optional(),
-	assignedElders: z.array(z.string().uuid()).optional().nullable(),
+	assignedElders: z.array(z.guid()).optional().nullable(),
 	resolutionSummary: z.string().optional().nullable(),
 });
 
@@ -42,7 +43,7 @@ export const createVisitRequestSchema = z.object({
 });
 
 export const assignVisitRequestSchema = z.object({
-	assignedElders: z.array(z.string().uuid()).length(2, "Se deben asignar exactamente 2 ancianos."),
+	assignedElders: z.array(z.guid()).length(2, "Se deben asignar exactamente 2 ancianos."),
 });
 
 export const updateVisitRequestStatusSchema = z.object({
@@ -57,5 +58,5 @@ export const updateVisitRequestStatusSchema = z.object({
 
 /** Reasignar un pastoreo solicitado (superintendente de grupo, comité o admin): una o dos personas con «Realiza pastoreos». */
 export const reassignVisitRequestSchema = z.object({
-	assignedTo: z.array(z.string().uuid()).min(1).max(2),
+	assignedTo: z.array(z.guid()).min(1).max(2),
 });

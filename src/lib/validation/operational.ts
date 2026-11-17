@@ -9,7 +9,7 @@ export const createOperationalSlotSchema = z.object({
 });
 
 export const assignOperationalSlotSchema = z.object({
-	assignedUserId: z.string().uuid().nullable(),
+	assignedUserId: z.guid().nullable(),
 });
 
 export const notifyOperationalSchema = z.object({

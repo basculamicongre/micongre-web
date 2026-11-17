@@ -8,12 +8,12 @@ const comment = z.string().trim().max(300);
 // Mensajes entre instancias: `requested` lo envía quien solicita; las demás
 // son la respuesta de quien recibe la solicitud.
 export const federationMessageSchema = z.discriminatedUnion("status", [
-	z.object({ status: z.literal("requested"), requestId: z.string().uuid(), senderUrl: z.string().min(1), year, month }),
-	z.object({ status: z.literal("accepted"), requestId: z.string().uuid(), senderUrl: z.string().min(1), comment: comment.optional() }),
-	z.object({ status: z.literal("rejected"), requestId: z.string().uuid(), senderUrl: z.string().min(1), comment: comment.optional() }),
+	z.object({ status: z.literal("requested"), requestId: z.guid(), senderUrl: z.string().min(1), year, month }),
+	z.object({ status: z.literal("accepted"), requestId: z.guid(), senderUrl: z.string().min(1), comment: comment.optional() }),
+	z.object({ status: z.literal("rejected"), requestId: z.guid(), senderUrl: z.string().min(1), comment: comment.optional() }),
 	z.object({
 		status: z.literal("counter"),
-		requestId: z.string().uuid(),
+		requestId: z.guid(),
 		senderUrl: z.string().min(1),
 		proposedYear: year,
 		proposedMonth: month,

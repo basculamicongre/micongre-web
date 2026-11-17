@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 import { EVENT_MEETING_ACTIONS } from "@/db/schema";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -31,4 +32,4 @@ export const createEventSchema = z.object({
 	weekendTime: time,
 });
 
-export const updateEventSchema = createEventSchema.partial();
+export const updateEventSchema = patchSchema(createEventSchema);

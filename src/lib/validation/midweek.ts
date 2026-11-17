@@ -12,11 +12,11 @@ export const createMidweekMeetingSchema = z.object({
 export const updateMidweekMeetingSchema = z.object({
 	weekLabel: z.string().optional().nullable(),
 	status: z.enum(MIDWEEK_STATUSES).optional(),
-	chairmanUserId: z.string().uuid().optional().nullable(),
+	chairmanUserId: z.guid().optional().nullable(),
 	openingSongNumber: z.number().int().positive().optional().nullable(),
 	closingSongNumber: z.number().int().positive().optional().nullable(),
 	middleSongNumber: z.number().int().positive().optional().nullable(),
-	openingPrayerUserId: z.string().uuid().optional().nullable(),
+	openingPrayerUserId: z.guid().optional().nullable(),
 	studyLessonReference: z.string().optional().nullable(),
 	hasAuxRoom: z.boolean().optional(),
 	notes: z.string().optional().nullable(),
@@ -41,8 +41,8 @@ export const createAssignmentSchema = z.object({
 });
 
 export const updateAssignmentSchema = z.object({
-	mainAssigneeId: z.string().uuid().nullable().optional(),
-	assistantAssigneeId: z.string().uuid().nullable().optional(),
+	mainAssigneeId: z.guid().nullable().optional(),
+	assistantAssigneeId: z.guid().nullable().optional(),
 	room: z.enum(["main", "auxiliary"]).optional(),
 	sectionTitle: z.string().optional().nullable(),
 	description: z.string().optional().nullable(),

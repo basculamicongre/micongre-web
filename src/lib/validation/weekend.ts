@@ -9,12 +9,12 @@ export const generateWeekendMonthSchema = z.object({
 });
 
 export const updateWeekendMeetingSchema = z.object({
-	chairmanUserId: z.string().uuid().nullable().optional(),
+	chairmanUserId: z.guid().nullable().optional(),
 	speakerId: z.string().min(1).nullable().optional(),
 	talkOutlineId: z.string().min(1).nullable().optional(),
-	watchtowerConductorId: z.string().uuid().nullable().optional(),
-	watchtowerReaderId: z.string().uuid().nullable().optional(),
-	prayerUserId: z.string().uuid().nullable().optional(),
+	watchtowerConductorId: z.guid().nullable().optional(),
+	watchtowerReaderId: z.guid().nullable().optional(),
+	prayerUserId: z.guid().nullable().optional(),
 	watchtowerFirst: z.boolean().optional(),
 	watchtowerTitle: z.string().nullable().optional(),
 	watchtowerSongNumber: z.number().int().positive().nullable().optional(),

@@ -59,6 +59,10 @@ Other guards in `src/lib/rbac/guards.ts`:
 - `assertCanRecordAttendance(session)` — admin or the `meeting_attendance_recorder` privilege; this is why `/api/midweek` and `/api/weekend` GET (list only, not the `[id]` detail) are open to any authenticated user rather than admin-only — a non-admin attendance recorder needs to see meeting dates to pick which one to record.
 - `isValidAssistantPairing()` in `eligibility.ts` — same-sex-or-same-`householdId` rule for a student assignment's assistant.
 
+### Validación (zod 4)
+
+Los esquemas de edición (PATCH) se arman con `patchSchema(createXSchema)` (`lib/validation/patch.ts`), **nunca** con `.partial()`: en zod 4 `.partial()` rellena los `.default()` y un PATCH que no manda un campo lo regresaría a su valor por omisión. Los id se validan con `z.guid()` (formato UUID sin exigir la versión RFC) y el correo con `z.email({ pattern: z.regexes.html5Email })`. Prueba: `__tests__/zod4.test.ts`.
+
 ### Schema quirks worth knowing before touching them
 
 - `operational_schedules` and `meeting_attendance` are **polymorphic**: `meetingType` (`midweek`|`weekend`) + `meetingId`, no real FK, because SQLite/D1 can't FK to one of two tables. Integrity is enforced in application code (`src/lib/collision.ts` resolves the right table per `meetingType`).

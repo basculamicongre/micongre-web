@@ -5,7 +5,7 @@ export const createNotificationSchema = z.discriminatedUnion("scope", [
 		scope: z.literal("publisher"),
 		message: z.string().min(1),
 		expiresAt: z.string().min(1),
-		recipientUserIds: z.array(z.string().uuid()).min(1),
+		recipientUserIds: z.array(z.guid()).min(1),
 	}),
 	z.object({
 		scope: z.literal("group"),
