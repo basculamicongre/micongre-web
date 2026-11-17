@@ -14,10 +14,13 @@ interface ImportResult {
 	total: number;
 	/** true/false si se pidió publicar para todas las congregaciones; null si no. */
 	published?: boolean | null;
+	/** Vino del catálogo central de Mi Congre (sin archivo). */
+	fromCatalog?: boolean;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
 	missing_file: "Selecciona el archivo EPUB o PDF.",
+	catalog_unavailable: "No se pudo traer el catálogo de Mi Congre en esta instalación. Sube el archivo EPUB o PDF.",
 	unrecognized_file: "No se reconoció la lista de títulos de discursos en este archivo.",
 };
 
@@ -48,15 +51,18 @@ export function EpubOutlineImportDialog({
 
 	async function runImport() {
 		const file = fileRef.current?.files?.[0];
-		if (!file) {
-			setError(ERROR_MESSAGES.missing_file);
-			return;
-		}
 		setLoading(true);
 		setError(null);
 
 		let response: Response;
-		if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+		if (!file) {
+			// Sin archivo: el catálogo central de Mi Congre (el mismo que aplica el job diario).
+			response = await fetch("/api/weekend/outlines/import", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ catalog: true }),
+			}).catch(() => new Response(null, { status: 503 }));
+		} else if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
 			// El PDF se lee aquí (pdf.js no cabe en el servidor) y se manda la lista ya armada.
 			let outlines: ParsedTalkOutline[] = [];
 			try {
@@ -103,9 +109,9 @@ export function EpubOutlineImportDialog({
 		<Modal open={open} onClose={handleClose} title="Importar catálogo de bosquejos">
 			<div className="flex flex-col gap-3">
 				<p className="text-sm text-ink-soft">
-					Sube el archivo EPUB o PDF con la lista de títulos de los discursos públicos ("Títulos de los discursos públicos ordenados por
-					temas"). Se agregan los bosquejos nuevos y se actualizan la categoría/título de los que ya
-					existan por número.
+					Sin elegir archivo se trae el catálogo de Mi Congre (el que se actualiza cada día); o sube el EPUB o PDF de «Títulos de los
+					discursos públicos ordenados por temas» (S-99a). Se agregan los bosquejos nuevos, se actualiza la categoría y el título de los
+					que ya existan por número y los retirados quedan marcados «No usar».
 				</p>
 
 				{!result && (
@@ -130,7 +136,7 @@ export function EpubOutlineImportDialog({
 				{result && (
 					<div className="flex flex-col gap-3">
 						<p className="text-sm text-ink">
-							Catálogo importado: {result.created} bosquejo{result.created === 1 ? "" : "s"} nuevo
+							{result.fromCatalog ? "Catálogo de Mi Congre aplicado" : "Catálogo importado"}: {result.created} bosquejo{result.created === 1 ? "" : "s"} nuevo
 							{result.created === 1 ? "" : "s"}, {result.updated} actualizado{result.updated === 1 ? "" : "s"}, de{" "}
 							{result.total} en total{result.retired ? ` (${result.retired} marcado${result.retired === 1 ? "" : "s"} «No usar»)` : ""}.
 						</p>
