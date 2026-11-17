@@ -25,8 +25,8 @@ export function WeekendModule() {
 							// Reporte de oradores locales: arriba, junto al título, como los demás reportes.
 							<ExportButton
 								kind="local-speakers"
-								label="Descargar reporte de oradores locales"
-								title="Oradores locales"
+								label="Descargar reporte de oradores públicos"
+								title="Oradores públicos aprobados"
 								formats={["xlsx", "docx", "png"]}
 								variants={[
 									{ label: "Solo activos", params: { status: "active" } },
