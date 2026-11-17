@@ -15,5 +15,7 @@ declare global {
 		/** Relay de push de Mi Congre (micongre-router): dirección y clave de esta congregación. Alternativa a tener Firebase propio. */
 		PUSH_RELAY_URL?: string;
 		PUSH_RELAY_KEY?: string;
+		/** Clave para publicar el catálogo central de bosquejos en el router (solo la instalación desde la que se publica). */
+		CATALOG_PUBLISH_KEY?: string;
 	}
 }

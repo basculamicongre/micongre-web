@@ -1,6 +1,7 @@
 import { and, eq, gte, isNotNull, lte, ne } from "drizzle-orm";
 import { applyUpcomingEvents, notifyDueEvents } from "@/lib/events/service";
 import { syncJwCatalog, type CatalogSyncResult } from "@/lib/literature/jwCatalog";
+import { syncOutlineCatalog, type OutlineCatalogResult } from "@/lib/publicTalks/catalogSync";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { Database } from "@/db/client";
 import { syncOwnCongregation } from "@/lib/jw/ownCongregation";
@@ -40,6 +41,8 @@ export interface DailyResult {
 	events: { applied: number; notified: number } | null;
 	/** Publicaciones nuevas de JW.ORG agregadas al catálogo de literatura (null si falló). */
 	literature: CatalogSyncResult | null;
+	/** Catálogo central de bosquejos (S-99a) del router aplicado al de esta congregación (null si falló). */
+	outlines: OutlineCatalogResult | null;
 }
 
 /** Lunes de cada semana cuyo lunes cae en el mes (AAAA-MM) — igual que `weekStartsOfMonth`, que cuenta cada semana en el mes de su lunes. */
@@ -193,7 +196,7 @@ async function syncCongregations(db: Database, out: DailyResult["congregations"]
 /** Job diario: (1) deja armados los programas del mes en curso y del siguiente (entre semana y fin de semana) y
  * con sus puestos de tareas operativas según la plantilla, y (2) actualiza desde jw.org el día y la hora de las congregaciones de arreglos que tienen enlace. Cada paso es independiente:
  * si uno falla, el otro corre igual. `only` limita a un paso (pruebas). */
-export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports" | "preaching" | "events" | "literature" | "studies"): Promise<DailyResult> {
+export async function runDailyJob(db: Database, now = new Date(), only?: "programs" | "congregations" | "reports" | "preaching" | "events" | "literature" | "studies" | "outlines"): Promise<DailyResult> {
 	const result: DailyResult = {
 		midweek: { created: 0, imported: 0, skeletons: 0, filled: 0, errors: [] },
 		weekend: { created: 0 },
@@ -204,6 +207,7 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 		studies: null,
 		events: null,
 		literature: null,
+		outlines: null,
 	};
 
 	if (!only || only === "programs") {
@@ -281,6 +285,13 @@ export async function runDailyJob(db: Database, now = new Date(), only?: "progra
 			result.literature = await syncJwCatalog(db, now);
 		} catch (error) {
 			console.error("daily_literature_failed", error);
+		}
+	}
+	if (!only || only === "outlines") {
+		try {
+			result.outlines = await syncOutlineCatalog(db);
+		} catch (error) {
+			console.error("daily_outlines_failed", error);
 		}
 	}
 	if (!only || only === "reports") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { pdfToText } from "@/lib/publicTalks/pdfText";
@@ -12,6 +12,8 @@ interface ImportResult {
 	/** Marcados «No usar» en el S-99a. */
 	retired?: number;
 	total: number;
+	/** true/false si se pidió publicar para todas las congregaciones; null si no. */
+	published?: boolean | null;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -32,6 +34,17 @@ export function EpubOutlineImportDialog({
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [result, setResult] = useState<ImportResult | null>(null);
+	// Solo la instalación con la clave para publicar (y un admin) ve la casilla.
+	const [canPublish, setCanPublish] = useState(false);
+	const [publish, setPublish] = useState(false);
+
+	useEffect(() => {
+		if (!open) return;
+		fetch("/api/weekend/outlines/import")
+			.then((r) => (r.ok ? (r.json() as Promise<{ canPublish?: boolean }>) : { canPublish: false }))
+			.then((b) => setCanPublish(!!b.canPublish))
+			.catch(() => setCanPublish(false));
+	}, [open]);
 
 	async function runImport() {
 		const file = fileRef.current?.files?.[0];
@@ -59,11 +72,12 @@ export function EpubOutlineImportDialog({
 			response = await fetch("/api/weekend/outlines/import", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ outlines }),
+				body: JSON.stringify({ outlines, publish: canPublish && publish }),
 			});
 		} else {
 			const formData = new FormData();
 			formData.append("file", file);
+			if (canPublish && publish) formData.append("publish", "1");
 			response = await fetch("/api/weekend/outlines/import", { method: "POST", body: formData });
 		}
 		setLoading(false);
@@ -97,6 +111,15 @@ export function EpubOutlineImportDialog({
 				{!result && (
 					<>
 						<input ref={fileRef} type="file" accept=".epub,.pdf,application/pdf,application/epub+zip" className="text-sm" />
+						{canPublish && (
+							<label className="flex items-start gap-2 text-sm">
+								<input type="checkbox" className="mt-0.5" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
+								<span>
+									Publicar para todas las congregaciones
+									<span className="block text-xs text-ink-soft">Cada instalación de Mi Congre lo toma en su actualización diaria.</span>
+								</span>
+							</label>
+						)}
 						{error && <p className="text-sm text-red-600">{error}</p>}
 						<Button disabled={loading} onClick={runImport} className="mt-2">
 							{loading ? "Importando..." : "Importar"}
@@ -111,6 +134,8 @@ export function EpubOutlineImportDialog({
 							{result.created === 1 ? "" : "s"}, {result.updated} actualizado{result.updated === 1 ? "" : "s"}, de{" "}
 							{result.total} en total{result.retired ? ` (${result.retired} marcado${result.retired === 1 ? "" : "s"} «No usar»)` : ""}.
 						</p>
+						{result.published === true && <p className="text-sm text-ink">Publicado para todas las congregaciones: lo tomarán en su actualización diaria.</p>}
+						{result.published === false && <p className="text-sm text-red-600">Se importó aquí, pero no se pudo publicar para las demás congregaciones. Inténtalo de nuevo.</p>}
 						<Button onClick={handleClose}>Listo</Button>
 					</div>
 				)}
