@@ -34,6 +34,8 @@ interface Outline {
 	id: string;
 	number: number;
 	title: string;
+	/** false = marcado «No usar». */
+	active?: boolean;
 }
 
 export function OutgoingTalksList({ weekStart, weekEnd }: { weekStart: string; weekEnd: string }) {
@@ -257,6 +259,7 @@ function OutgoingTalkFormModal({
 						{outlineOptions.map((o) => (
 							<option key={o.id} value={o.id}>
 								{o.number}. {o.title}
+								{o.active === false ? " (No usar)" : ""}
 							</option>
 						))}
 					</Select>

@@ -35,7 +35,7 @@ export function WeekendModule() {
 							/>
 						) : tab === "history" ? (
 							<>
-								<IconButton label="Importar catálogo de bosquejos (EPUB)" icon={BookOpen} tone="accent" onClick={() => setImporting("outlines")} />
+								<IconButton label="Importar catálogo de bosquejos (EPUB o PDF)" icon={BookOpen} tone="accent" onClick={() => setImporting("outlines")} />
 								<IconButton label="Importar canciones (JW.ORG o EPUB)" icon={Music} tone="accent" onClick={() => setImporting("songs")} />
 							</>
 						) : undefined

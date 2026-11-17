@@ -73,6 +73,7 @@ export function WeekendList({ tabs }: { tabs: React.ReactNode }) {
 								{ label: "Todo el mes", params: { scope: "month" } },
 								{ label: "Oradores salientes (semana)", kind: "outgoing-talks", params: { scope: "week" } },
 								{ label: "Oradores salientes (mes)", kind: "outgoing-talks", params: { scope: "month" } },
+								{ label: "Invitados (mes)", kind: "incoming-talks", params: { scope: "month" } },
 							]}
 							label="Descargar reporte"
 							title="Reporte de fin de semana"

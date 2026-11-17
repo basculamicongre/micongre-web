@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { Badge, Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { List, ListRow, SectionLabel } from "@/components/ui/Layout";
 import { formatShortDate } from "@/lib/dateFormat";
-import { EpubOutlineImportDialog } from "./EpubOutlineImportDialog";
+import dynamic from "next/dynamic";
+
+// Solo en el navegador: lee PDF con pdf.js, que así no entra en el Worker del servidor.
+const EpubOutlineImportDialog = dynamic(() => import("./EpubOutlineImportDialog").then((m) => m.EpubOutlineImportDialog), { ssr: false });
 import { SongsImportDialog } from "./SongsImportDialog";
 import { PageLoader } from "@/components/ui/Spinner";
 
@@ -17,6 +20,7 @@ interface Outline {
 	number: number;
 	category: string;
 	title: string;
+	/** false = marcado «No usar» (retirado en el S-99a o a mano). */
 	active: boolean;
 	lastGivenDate: string | null;
 }
@@ -46,8 +50,11 @@ function OutlineRow({ outline, onClick }: { outline: Outline; onClick: () => voi
 		<ListRow
 			onClick={onClick}
 			title={
-				<span className={`text-sm font-medium ${outline.active ? "text-ink" : "text-ink-soft line-through"}`}>
-					{outline.number}. {outline.title}
+				<span className={`flex flex-wrap items-center gap-2 text-sm font-medium ${outline.active ? "text-ink" : "text-ink-soft"}`}>
+					<span>
+						{outline.number}. {outline.title}
+					</span>
+					{!outline.active && <Badge tone="warning">No usar</Badge>}
 				</span>
 			}
 			subtitle={outline.lastGivenDate ? formatLastGiven(outline.lastGivenDate) : undefined}
@@ -218,14 +225,14 @@ function OutlineFormModal({
 	const [number, setNumber] = useState(outline ? String(outline.number) : "");
 	const [category, setCategory] = useState(outline?.category ?? "");
 	const [title, setTitle] = useState(outline?.title ?? "");
-	const [active, setActive] = useState(outline?.active ?? true);
+	const [doNotUse, setDoNotUse] = useState(outline ? !outline.active : false);
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
 	async function save() {
 		setSaving(true);
 		setError(null);
-		const body = { number: Number(number), category, title, ...(outline ? { active } : {}) };
+		const body = { number: Number(number), category, title, ...(outline ? { active: !doNotUse } : {}) };
 		const response = await fetch(outline ? `/api/weekend/outlines/${outline.id}` : "/api/weekend/outlines", {
 			method: outline ? "PATCH" : "POST",
 			headers: { "Content-Type": "application/json" },
@@ -259,8 +266,8 @@ function OutlineFormModal({
 				<Input label="Título" value={title} onChange={(e) => setTitle(e.target.value)} required />
 				{outline && (
 					<label className="flex items-center gap-2 text-sm">
-						<input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-						Activo
+						<input type="checkbox" checked={doNotUse} onChange={(e) => setDoNotUse(e.target.checked)} />
+						No usar
 					</label>
 				)}
 				{error && <p className="text-sm text-red-600">{error}</p>}

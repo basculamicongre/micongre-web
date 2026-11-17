@@ -3,16 +3,20 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { pdfToText } from "@/lib/publicTalks/pdfText";
+import { parseS99aText, type ParsedTalkOutline } from "@/lib/publicTalks/parseS99a";
 
 interface ImportResult {
 	created: number;
 	updated: number;
+	/** Marcados «No usar» en el S-99a. */
+	retired?: number;
 	total: number;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-	missing_file: "Selecciona un archivo EPUB.",
-	unrecognized_file: "No se reconoció la lista de títulos de discursos en este EPUB.",
+	missing_file: "Selecciona el archivo EPUB o PDF.",
+	unrecognized_file: "No se reconoció la lista de títulos de discursos en este archivo.",
 };
 
 export function EpubOutlineImportDialog({
@@ -38,9 +42,30 @@ export function EpubOutlineImportDialog({
 		setLoading(true);
 		setError(null);
 
-		const formData = new FormData();
-		formData.append("file", file);
-		const response = await fetch("/api/weekend/outlines/import", { method: "POST", body: formData });
+		let response: Response;
+		if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+			// El PDF se lee aquí (pdf.js no cabe en el servidor) y se manda la lista ya armada.
+			let outlines: ParsedTalkOutline[] = [];
+			try {
+				outlines = parseS99aText(await pdfToText(await file.arrayBuffer()));
+			} catch {
+				outlines = [];
+			}
+			if (outlines.length === 0) {
+				setLoading(false);
+				setError(ERROR_MESSAGES.unrecognized_file);
+				return;
+			}
+			response = await fetch("/api/weekend/outlines/import", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ outlines }),
+			});
+		} else {
+			const formData = new FormData();
+			formData.append("file", file);
+			response = await fetch("/api/weekend/outlines/import", { method: "POST", body: formData });
+		}
 		setLoading(false);
 
 		if (!response.ok) {
@@ -64,14 +89,14 @@ export function EpubOutlineImportDialog({
 		<Modal open={open} onClose={handleClose} title="Importar catálogo de bosquejos">
 			<div className="flex flex-col gap-3">
 				<p className="text-sm text-ink-soft">
-					Sube el archivo EPUB con la lista de títulos de los discursos públicos ("Títulos de los discursos públicos ordenados por
+					Sube el archivo EPUB o PDF con la lista de títulos de los discursos públicos ("Títulos de los discursos públicos ordenados por
 					temas"). Se agregan los bosquejos nuevos y se actualizan la categoría/título de los que ya
 					existan por número.
 				</p>
 
 				{!result && (
 					<>
-						<input ref={fileRef} type="file" accept=".epub" className="text-sm" />
+						<input ref={fileRef} type="file" accept=".epub,.pdf,application/pdf,application/epub+zip" className="text-sm" />
 						{error && <p className="text-sm text-red-600">{error}</p>}
 						<Button disabled={loading} onClick={runImport} className="mt-2">
 							{loading ? "Importando..." : "Importar"}
@@ -84,7 +109,7 @@ export function EpubOutlineImportDialog({
 						<p className="text-sm text-ink">
 							Catálogo importado: {result.created} bosquejo{result.created === 1 ? "" : "s"} nuevo
 							{result.created === 1 ? "" : "s"}, {result.updated} actualizado{result.updated === 1 ? "" : "s"}, de{" "}
-							{result.total} en total.
+							{result.total} en total{result.retired ? ` (${result.retired} marcado${result.retired === 1 ? "" : "s"} «No usar»)` : ""}.
 						</p>
 						<Button onClick={handleClose}>Listo</Button>
 					</div>

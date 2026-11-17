@@ -8,6 +8,7 @@ import { buildLiterature } from "./builders/literature";
 import { buildLocalSpeakers } from "./builders/localSpeakers";
 import { buildMeetings } from "./builders/meetings";
 import { buildOperational } from "./builders/operational";
+import { buildIncoming } from "./builders/incoming";
 import { buildOutgoing } from "./builders/outgoing";
 import { buildPeople } from "./builders/people";
 import { buildPrograms } from "./builders/programs";
@@ -34,6 +35,7 @@ export const REPORT_BUILDERS: Record<string, ReportBuilder> = {
 	s140: buildPrograms,
 	"weekend-program": buildPrograms,
 	"outgoing-talks": buildOutgoing,
+	"incoming-talks": buildIncoming,
 	// Oradores locales: ?status=active (solo activos) | all.
 	"local-speakers": buildLocalSpeakers,
 	s89: buildPrograms,

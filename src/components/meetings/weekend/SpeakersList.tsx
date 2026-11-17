@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Globe, Phone, Plus } from "lucide-react";
+import { ChevronRight, Globe, Pencil, Phone, Plus, UserCheck, UserX } from "lucide-react";
 import { Card, Badge } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -12,6 +12,9 @@ import { CongregationsTable } from "./CongregationsTable";
 import { DirectoryModal } from "./DirectoryModal";
 import { CongregationPicker, HubAddRow, upsertCongregation, type Congregation } from "./CongregationPicker";
 import { PageLoader } from "@/components/ui/Spinner";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { WhatsAppGlyph } from "@/components/panel/PanelLinks";
+import { contactLinks } from "@/lib/contact/phone";
 
 interface Speaker {
 	id: string;
@@ -37,6 +40,8 @@ interface Outline {
 	number: number;
 	category: string;
 	title: string;
+	/** false = marcado «No usar». */
+	active: boolean;
 }
 
 interface PublisherResult {
@@ -60,22 +65,23 @@ function OutlineChecklist({
 	songByOutline: Record<string, number | null>;
 	onSong: (outlineId: string, song: number | null) => void;
 }) {
+	// Primero los que tenía seleccionados al abrir y luego los demás, cada grupo por número. El orden se fija al abrir para que un
+	// bosquejo no salte de lugar al marcarlo o desmarcarlo.
+	const [initial] = useState(() => new Set(selected));
 	if (outlines.length === 0) {
 		return <p className="text-xs text-ink-soft">No hay bosquejos en el catálogo todavía — impórtalos en Historial.</p>;
 	}
 
-	const sorted = [...outlines].sort((a, b) => a.number - b.number);
+	const sorted = [...outlines].sort((a, b) => Number(initial.has(b.id)) - Number(initial.has(a.id)) || a.number - b.number);
 
 	return (
 		<div className="flex max-h-72 flex-col gap-1 overflow-y-auto rounded-2xl border border-border p-3 text-sm">
-			{songs.length === 0 && (
-				<p className="pb-1 text-xs text-ink-soft">Importa las canciones (EPUB «Cantemos con gozo») en Historial para asignar una a cada discurso.</p>
-			)}
 			{sorted.map((outline) => (
 				<div key={outline.id} className="flex flex-col gap-1 py-0.5">
 					<label className="flex items-center gap-2">
 						<input type="checkbox" checked={selected.has(outline.id)} onChange={() => onToggle(outline.id)} />
 						{outline.number}. {outline.title}
+						{!outline.active && <Badge tone="warning">No usar</Badge>}
 					</label>
 					{selected.has(outline.id) && songs.length > 0 && (
 						<div className="pl-6">
@@ -124,6 +130,29 @@ export function SpeakersList() {
 			.catch(() => setDirectoryAvailable(false));
 	}, []);
 	const [editingId, setEditingId] = useState<string | null>(null);
+	const [expanded, setExpanded] = useState<Set<string>>(new Set());
+	const [togglingId, setTogglingId] = useState<string | null>(null);
+
+	function toggleExpanded(id: string) {
+		setExpanded((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	}
+
+	/** Activa o desactiva al orador sin abrir el editor. */
+	async function toggleActive(speaker: Speaker) {
+		setTogglingId(speaker.id);
+		const response = await fetch(`/api/weekend/speakers/${speaker.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ active: !speaker.active }),
+		});
+		setTogglingId(null);
+		if (response.ok) setSpeakers((prev) => prev.map((s) => (s.id === speaker.id ? { ...s, active: !speaker.active } : s)));
+	}
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -148,12 +177,18 @@ export function SpeakersList() {
 		if ((kindFilter === "local" || kindFilter === "visiting") && s.kind !== kindFilter) return false;
 		if (statusFilter === "active" && !s.active) return false;
 		if (statusFilter === "inactive" && s.active) return false;
-		if (search && !s.fullName.toLowerCase().includes(search.toLowerCase())) return false;
+		if (search) {
+			// Por nombre o por congregación («local» encuentra a los oradores locales).
+			const needle = search.toLowerCase();
+			const where = s.kind === "local" ? "local" : (s.congregationName ?? "");
+			if (!s.fullName.toLowerCase().includes(needle) && !where.toLowerCase().includes(needle)) return false;
+		}
 		return true;
 	});
 
 	const editingSpeaker = editingId ? (speakers.find((s) => s.id === editingId) ?? null) : null;
 	const outlineById = new Map(outlines.map((o) => [o.id, o]));
+	const songTitle = new Map(songs.map((s) => [s.number, s.title]));
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -181,7 +216,10 @@ export function SpeakersList() {
 			</div>
 
 			<div className="sm:max-w-sm">
-				<Input placeholder="Buscar por nombre" aria-label="Buscar por nombre" value={search} onChange={(e) => setSearch(e.target.value)} />
+				<Input
+					placeholder={kindFilter === "congregations" || kindFilter === "arrangements" ? "Buscar por nombre" : "Buscar por nombre o congregación"}
+					aria-label="Buscar"
+					value={search} onChange={(e) => setSearch(e.target.value)} />
 			</div>
 
 			<ChipGroup>
@@ -232,37 +270,84 @@ export function SpeakersList() {
 									.filter((o): o is Outline => !!o)
 									.sort((x, y) => x.number - y.number);
 								const where = speaker.kind === "local" ? "Local" : (speaker.congregationName ?? "Visitante");
-								const phoneHref = speaker.phone ? `tel:${speaker.phone.replace(/[^\d+]/g, "")}` : null;
+								const links = contactLinks(speaker.phone);
+								const phoneHref = links?.tel ?? (speaker.phone ? `tel:${speaker.phone.replace(/[^\d+]/g, "")}` : null);
+								const open = expanded.has(speaker.id);
 
 								return (
-									<div key={speaker.id} className="flex min-h-14 items-center gap-1 pl-4 pr-2">
-										<button
-											type="button"
-											onClick={() => setEditingId(speaker.id)}
-											className="min-w-0 flex-1 py-3 pr-2 text-left"
-										>
-											<div className="flex flex-wrap items-center gap-2 text-base font-semibold text-ink">
-												{speaker.fullName}
-												{speaker.active ? <Badge tone="success">Activo</Badge> : <Badge tone="neutral">Inactivo</Badge>}
-											</div>
-											<div className="mt-0.5 text-[13px] text-ink-soft">{where}</div>
-											<div className="mt-1.5 flex flex-wrap gap-1">
+									<div key={speaker.id}>
+										<div className="flex min-h-14 items-center gap-1 pl-2 pr-2">
+											<button
+												type="button"
+												onClick={() => toggleExpanded(speaker.id)}
+												aria-expanded={open}
+												className="flex min-w-0 flex-1 items-center gap-2 py-3 pr-2 text-left"
+											>
+												<ChevronRight size={18} className={`shrink-0 text-ink-soft transition-transform ${open ? "rotate-90" : ""}`} />
+												<span className="min-w-0">
+													<span className="flex flex-wrap items-center gap-2 text-base font-semibold text-ink">
+														{speaker.fullName}
+														{speaker.active ? <Badge tone="success">Activo</Badge> : <Badge tone="neutral">Inactivo</Badge>}
+													</span>
+													<span className="mt-0.5 block text-[13px] text-ink-soft">{where}</span>
+												</span>
+											</button>
+											{phoneHref && <IconButton label="Llamar" icon={Phone} href={phoneHref} />}
+											{links && (
+												<Tooltip content="WhatsApp">
+													<a
+														href={links.whatsapp}
+														target="_blank"
+														rel="noopener noreferrer"
+														aria-label="WhatsApp"
+														className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#25D366] transition-colors hover:bg-surface-alt"
+													>
+														<WhatsAppGlyph size={20} />
+													</a>
+												</Tooltip>
+											)}
+											<IconButton
+												label={speaker.active ? "Desactivar" : "Activar"}
+												icon={speaker.active ? UserX : UserCheck}
+												disabled={togglingId === speaker.id}
+												onClick={() => toggleActive(speaker)}
+											/>
+											<IconButton label="Editar" icon={Pencil} onClick={() => setEditingId(speaker.id)} />
+										</div>
+										{open && (
+											<div className="pb-3 pl-9 pr-4">
 												{mine.length === 0 ? (
-													<span className="text-[13px] text-ink-soft">Sin bosquejos</span>
+													<p className="text-[13px] text-ink-soft">Sin bosquejos registrados.</p>
 												) : (
-													mine.map((o) => (
-														<span
-															key={o.id}
-															title={o.title}
-															className="inline-flex min-w-8 items-center justify-center rounded-full bg-surface-alt px-2 py-0.5 text-xs font-medium text-ink"
-														>
-															{o.number}
-														</span>
-													))
+													<ul className="flex flex-col gap-1.5 text-sm">
+														{mine.map((o) => {
+															const song = speaker.outlineSongs[o.id];
+															return (
+																<li key={o.id} className="flex gap-2">
+																	<span className="inline-flex h-6 min-w-8 shrink-0 items-center justify-center rounded-full bg-surface-alt px-2 text-xs font-medium text-ink">
+																		{o.number}
+																	</span>
+																	<span className="min-w-0">
+																		<span className="text-ink">{o.title}</span>
+																		{!o.active && (
+																			<span className="ml-2 align-middle">
+																				<Badge tone="warning">No usar</Badge>
+																			</span>
+																		)}
+																		{song != null && (
+																			<span className="block text-[13px] text-ink-soft">
+																				Canción {song}
+																				{songTitle.get(song) ? `: ${songTitle.get(song)}` : ""}
+																			</span>
+																		)}
+																	</span>
+																</li>
+															);
+														})}
+													</ul>
 												)}
 											</div>
-										</button>
-										{phoneHref && <IconButton label="Llamar" icon={Phone} href={phoneHref} />}
+										)}
 									</div>
 								);
 							})}

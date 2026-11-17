@@ -17,6 +17,8 @@ export interface OutlineOption {
 	id: string;
 	number: number;
 	title: string;
+	/** false = marcado «No usar». */
+	active?: boolean;
 }
 
 export function SpeakerPicker({
@@ -73,6 +75,7 @@ export function SpeakerPicker({
 					{outlineOptions.map((o) => (
 						<option key={o.id} value={o.id}>
 							{o.number}. {o.title}
+							{o.active === false ? " (No usar)" : ""}
 						</option>
 					))}
 				</Select>
