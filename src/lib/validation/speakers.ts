@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 
 /** Canción de cada bosquejo del repertorio: id del bosquejo → número de canción (o null). */
 const outlineSongs = z.record(z.string(), z.number().int().min(1).max(999).nullable());
@@ -6,7 +7,7 @@ const outlineSongs = z.record(z.string(), z.number().int().min(1).max(999).nulla
 export const createSpeakerSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("local"),
-		userId: z.string().uuid(),
+		userId: z.guid(),
 		outlineIds: z.array(z.string().min(1)).default([]),
 		outlineSongs: outlineSongs.optional(),
 	}),
@@ -36,7 +37,7 @@ export const createSpeakerCongregationSchema = z.object({
 	notes: z.string().nullable().optional(),
 });
 
-export const updateSpeakerCongregationSchema = createSpeakerCongregationSchema.partial().extend({
+export const updateSpeakerCongregationSchema = patchSchema(createSpeakerCongregationSchema).extend({
 	forkUrl: z.string().nullable().optional(),
 	// Ubicación del Salón (normalmente la trae JW.ORG; se puede corregir a mano).
 	latitude: z.number().min(-90).max(90).nullable().optional(),

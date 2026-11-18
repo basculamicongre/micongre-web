@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 
 export const createOutgoingTalkSchema = z.object({
 	meetingDate: z.string().min(1),
@@ -8,4 +9,4 @@ export const createOutgoingTalkSchema = z.object({
 	talkOutlineId: z.string().min(1),
 });
 
-export const updateOutgoingTalkSchema = createOutgoingTalkSchema.partial();
+export const updateOutgoingTalkSchema = patchSchema(createOutgoingTalkSchema);

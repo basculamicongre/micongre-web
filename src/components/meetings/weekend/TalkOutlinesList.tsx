@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Music, Plus } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { Plus } from "lucide-react";
+import { Badge, Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { IconButton, List, ListRow, SectionLabel } from "@/components/ui/Layout";
+import { List, ListRow, SectionLabel } from "@/components/ui/Layout";
 import { formatShortDate } from "@/lib/dateFormat";
-import { EpubOutlineImportDialog } from "./EpubOutlineImportDialog";
+import dynamic from "next/dynamic";
+
+// Solo en el navegador: lee PDF con pdf.js, que así no entra en el Worker del servidor.
+const EpubOutlineImportDialog = dynamic(() => import("./EpubOutlineImportDialog").then((m) => m.EpubOutlineImportDialog), { ssr: false });
 import { SongsImportDialog } from "./SongsImportDialog";
 import { PageLoader } from "@/components/ui/Spinner";
 
@@ -17,6 +20,7 @@ interface Outline {
 	number: number;
 	category: string;
 	title: string;
+	/** false = marcado «No usar» (retirado en el S-99a o a mano). */
 	active: boolean;
 	lastGivenDate: string | null;
 }
@@ -46,8 +50,11 @@ function OutlineRow({ outline, onClick }: { outline: Outline; onClick: () => voi
 		<ListRow
 			onClick={onClick}
 			title={
-				<span className={`text-sm font-medium ${outline.active ? "text-ink" : "text-ink-soft line-through"}`}>
-					{outline.number}. {outline.title}
+				<span className={`flex flex-wrap items-center gap-2 text-sm font-medium ${outline.active ? "text-ink" : "text-ink-soft"}`}>
+					<span>
+						{outline.number}. {outline.title}
+					</span>
+					{!outline.active && <Badge tone="warning">No usar</Badge>}
 				</span>
 			}
 			subtitle={outline.lastGivenDate ? formatLastGiven(outline.lastGivenDate) : undefined}
@@ -60,14 +67,15 @@ function formatLastGiven(date: string | null): string | null {
 	return formatShortDate(date);
 }
 
-export function TalkOutlinesList() {
+/** Qué importador está abierto: los botones van arriba, en el encabezado del módulo (ver WeekendModule). */
+export type OutlinesImport = "outlines" | "songs" | null;
+
+export function TalkOutlinesList({ importing, onImportingChange }: { importing: OutlinesImport; onImportingChange: (v: OutlinesImport) => void }) {
 	const [outlines, setOutlines] = useState<Outline[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [search, setSearch] = useState("");
 	const [sortBy, setSortBy] = useState<SortBy>("number");
 	const [addOpen, setAddOpen] = useState(false);
-	const [importOpen, setImportOpen] = useState(false);
-	const [songsOpen, setSongsOpen] = useState(false);
 	const [editing, setEditing] = useState<Outline | null>(null);
 
 	useEffect(() => {
@@ -118,8 +126,6 @@ export function TalkOutlinesList() {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-end gap-1">
-				<IconButton label="Importar catálogo de bosquejos (EPUB)" icon={BookOpen} onClick={() => setImportOpen(true)} />
-				<IconButton label="Importar canciones (JW.ORG o EPUB)" icon={Music} onClick={() => setSongsOpen(true)} />
 				<Button onClick={() => setAddOpen(true)}>
 					<Plus size={16} />
 					Agregar bosquejo
@@ -181,8 +187,8 @@ export function TalkOutlinesList() {
 					}}
 				/>
 			)}
-			<EpubOutlineImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImported={load} />
-			<SongsImportDialog open={songsOpen} onClose={() => setSongsOpen(false)} />
+			<EpubOutlineImportDialog open={importing === "outlines"} onClose={() => onImportingChange(null)} onImported={load} />
+			<SongsImportDialog open={importing === "songs"} onClose={() => onImportingChange(null)} />
 
 			{editing && (
 				<OutlineFormModal
@@ -219,14 +225,14 @@ function OutlineFormModal({
 	const [number, setNumber] = useState(outline ? String(outline.number) : "");
 	const [category, setCategory] = useState(outline?.category ?? "");
 	const [title, setTitle] = useState(outline?.title ?? "");
-	const [active, setActive] = useState(outline?.active ?? true);
+	const [doNotUse, setDoNotUse] = useState(outline ? !outline.active : false);
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
 	async function save() {
 		setSaving(true);
 		setError(null);
-		const body = { number: Number(number), category, title, ...(outline ? { active } : {}) };
+		const body = { number: Number(number), category, title, ...(outline ? { active: !doNotUse } : {}) };
 		const response = await fetch(outline ? `/api/weekend/outlines/${outline.id}` : "/api/weekend/outlines", {
 			method: outline ? "PATCH" : "POST",
 			headers: { "Content-Type": "application/json" },
@@ -260,8 +266,8 @@ function OutlineFormModal({
 				<Input label="Título" value={title} onChange={(e) => setTitle(e.target.value)} required />
 				{outline && (
 					<label className="flex items-center gap-2 text-sm">
-						<input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-						Activo
+						<input type="checkbox" checked={doNotUse} onChange={(e) => setDoNotUse(e.target.checked)} />
+						No usar
 					</label>
 				)}
 				{error && <p className="text-sm text-red-600">{error}</p>}

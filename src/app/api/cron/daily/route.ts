@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 	}
 	try {
 		const only = new URL(request.url).searchParams.get("only");
-		return NextResponse.json(await runDailyJob(getDb(), new Date(), only === "programs" || only === "congregations" || only === "reports" || only === "preaching" || only === "events" || only === "literature" || only === "studies" ? only : undefined));
+		return NextResponse.json(await runDailyJob(getDb(), new Date(), only === "programs" || only === "congregations" || only === "reports" || only === "preaching" || only === "events" || only === "literature" || only === "studies" || only === "outlines" ? only : undefined));
 	} catch (error) {
 		console.error("daily_job_failed", error);
 		return NextResponse.json({ error: "internal_error" }, { status: 500 });

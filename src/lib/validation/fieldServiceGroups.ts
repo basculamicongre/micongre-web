@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 
 export const createFieldServiceGroupSchema = z.object({
 	name: z.string().min(1),
-	overseerUserId: z.string().uuid().nullable().optional(),
-	assistantUserId: z.string().uuid().nullable().optional(),
+	overseerUserId: z.guid().nullable().optional(),
+	assistantUserId: z.guid().nullable().optional(),
 	regularMeetingPlace: z.string().nullable().optional(),
 	color: z
 		.string()
@@ -12,6 +13,6 @@ export const createFieldServiceGroupSchema = z.object({
 		.optional(),
 });
 
-export const updateFieldServiceGroupSchema = createFieldServiceGroupSchema.partial().extend({
+export const updateFieldServiceGroupSchema = patchSchema(createFieldServiceGroupSchema).extend({
 	active: z.boolean().optional(),
 });

@@ -29,8 +29,13 @@ export function parseRange(params: URLSearchParams, defaultScope: "week" | "mont
 	if (scope === "month") {
 		const y = d.getUTCFullYear();
 		const m = d.getUTCMonth();
-		const from = toISODate(new Date(Date.UTC(y, m, 1)));
-		const to = toISODate(new Date(Date.UTC(y, m + 1, 0)));
+		// Cada semana cuenta en el mes de su lunes: del primer lunes del mes al domingo de la semana del último lunes.
+		const first = new Date(Date.UTC(y, m, 1));
+		const firstMonday = addDays(first, (8 - first.getUTCDay()) % 7);
+		const nextFirst = new Date(Date.UTC(y, m + 1, 1));
+		const nextMonday = addDays(nextFirst, (8 - nextFirst.getUTCDay()) % 7);
+		const from = toISODate(firstMonday);
+		const to = toISODate(addDays(nextMonday, -1));
 		return { from, to, scope, label: `${MONTHS[m]} de ${y}`, slug: `${y}-${String(m + 1).padStart(2, "0")}` };
 	}
 	const monday = mondayOf(d);

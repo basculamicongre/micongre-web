@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const upsertS4ReportSchema = z.object({
-	userId: z.string().uuid(),
+	userId: z.guid(),
 	periodYear: z.number().int().min(2000),
 	periodMonth: z.number().int().min(1).max(12),
 	participatedInMinistry: z.boolean().default(true),

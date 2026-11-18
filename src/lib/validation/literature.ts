@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 import { LITERATURE_CATEGORIES, LITERATURE_OFFER_AUDIENCES } from "@/db/schema";
 import { MAX_OFFER_QUANTITY } from "@/lib/literature/rules";
 
@@ -11,7 +12,7 @@ export const publicationSchema = z.object({
 	category: z.enum(LITERATURE_CATEGORIES),
 });
 
-export const publicationUpdateSchema = publicationSchema.partial();
+export const publicationUpdateSchema = patchSchema(publicationSchema);
 
 export const locationSchema = z.object({ name: z.string().trim().min(1).max(80) });
 
@@ -36,7 +37,7 @@ export const offerSchema = z.object({
 	endsOn: isoDate,
 });
 
-export const offerUpdateSchema = offerSchema.partial();
+export const offerUpdateSchema = patchSchema(offerSchema);
 
 export const orderSchema = z.object({
 	publicationId: z.string().min(1),
@@ -45,7 +46,7 @@ export const orderSchema = z.object({
 	note: optText(300),
 });
 
-export const orderUpdateSchema = orderSchema.partial().extend({ archived: z.boolean().optional() });
+export const orderUpdateSchema = patchSchema(orderSchema).extend({ archived: z.boolean().optional() });
 
 export const offerResponseSchema = z.object({
 	answer: z.enum(["yes", "no"]),

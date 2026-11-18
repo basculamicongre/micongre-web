@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchSchema } from "./patch";
 import { PIONEER_STUDY_STATUSES } from "@/db/schema";
 import { MAX_HOURS_PER_ENTRY } from "@/lib/pioneer/rules";
 
@@ -11,7 +12,7 @@ export const hoursSchema = z.object({
 	comment: optText(300),
 });
 
-export const hoursUpdateSchema = hoursSchema.partial();
+export const hoursUpdateSchema = patchSchema(hoursSchema);
 
 export const studySchema = z.object({
 	name: z.string().trim().min(1).max(120),
@@ -22,4 +23,4 @@ export const studySchema = z.object({
 	longitude: z.number().min(-180).max(180).nullable().optional(),
 });
 
-export const studyUpdateSchema = studySchema.partial();
+export const studyUpdateSchema = patchSchema(studySchema);
