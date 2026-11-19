@@ -4,11 +4,12 @@ import { getDb } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { preachingErrorResponse } from "@/lib/preaching/http";
 import { changeDeparture } from "@/lib/preaching/service";
-import { canAccessPreachingModule } from "@/lib/rbac/guards";
+import { canManageDepartures } from "@/lib/rbac/guards";
 
 const bodySchema = z.object({ territoryId: z.string().min(1), fid: z.string().min(1).max(64).nullable() });
 
-/** Cambia el punto de salida de un territorio en una salida de predicación: quien programa las salidas o el capitán del territorio,
+/** Cambia el punto de salida de un territorio en una salida de predicación: quien administra la predicación o los territorios, el
+ * secretario y el siervo de territorios (`canManageDepartures`), o el capitán solo el de su territorio;
  * antes de la salida o hasta 2 horas después (409 `departure_locked`). Si ya se avisó, reenvía el aviso. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
@@ -17,9 +18,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 		const { id } = await params;
 		const parsed = bodySchema.safeParse(await request.json().catch(() => null));
 		if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-		await changeDeparture(getDb(), id, parsed.data.territoryId, parsed.data.fid, {
+		const db = getDb();
+		await changeDeparture(db, id, parsed.data.territoryId, parsed.data.fid, {
 			userId: session.userId,
-			canManage: canAccessPreachingModule(session),
+			canManage: await canManageDepartures(db, session),
 		});
 		return NextResponse.json({ ok: true });
 	} catch (error) {

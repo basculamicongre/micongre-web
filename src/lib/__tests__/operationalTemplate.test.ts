@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findDuplicatePosition, planSlotSync, slotDisplayName, sortByTemplate, type ExistingSlot } from "@/lib/operational/template";
+import { planSlotSync, slotDisplayName, sortByTemplate, type ExistingSlot } from "@/lib/operational/template";
 
 let n = 0;
 function row(privilegeId: string, position: string | null, assignedUserId: string | null = null): ExistingSlot {
@@ -45,10 +45,13 @@ describe("plantilla de puestos operativos", () => {
 		expect(plan).toEqual({ insert: [], remove: [] });
 	});
 
-	it("detecta un mismo nombre de puesto repetido en la misma tarea, pero no los que no tienen nombre", () => {
-		expect(findDuplicatePosition([{ privilegeId: "a", position: null }, { privilegeId: "a", position: null }])).toBeNull();
-		expect(findDuplicatePosition([{ privilegeId: "a", position: "X" }, { privilegeId: "b", position: "X" }])).toBeNull();
-		expect(findDuplicatePosition([{ privilegeId: "a", position: "X" }, { privilegeId: "a", position: " X" }])?.position).toBe(" X");
+	it("el mismo nombre puede repetirse en la misma tarea (p. ej. dos «Entrada»)", () => {
+		const plan = planSlotSync(
+			[{ privilegeId: "a", position: "Entrada" }, { privilegeId: "a", position: "Entrada" }],
+			[row("a", "Entrada", "u1")],
+		);
+		expect(plan.insert).toEqual([{ privilegeId: "a", position: "Entrada" }]);
+		expect(plan.remove).toEqual([]);
 	});
 });
 

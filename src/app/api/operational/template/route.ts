@@ -9,7 +9,6 @@ import { getSession } from "@/lib/auth/session";
 import { chunked } from "@/lib/cleaning/meetings";
 import {
 	currentWeekStart,
-	findDuplicatePosition,
 	isTemplateConfigured,
 	loadOperationalCatalog,
 	loadTemplate,
@@ -56,14 +55,6 @@ export async function PUT(request: Request) {
 		if (slots.some((s) => !catalog.has(s.privilegeId))) {
 			return NextResponse.json({ error: "invalid_privilege", message: "Una de las asignaciones no es de acomodadores." }, { status: 400 });
 		}
-		const duplicate = findDuplicatePosition(slots);
-		if (duplicate) {
-			return NextResponse.json(
-				{ error: "duplicate_position", message: `El nombre «${duplicate.position}» está repetido en la misma tarea: ponle otro.` },
-				{ status: 400 },
-			);
-		}
-
 		const meetingType: OperationalMeetingType = parsed.data.meetingType;
 		const rowsFor = (type: OperationalMeetingType, list: TemplateSlot[]) =>
 			list.map((s, i) => ({ meetingType: type, privilegeId: s.privilegeId, position: s.position, sortOrder: i }));

@@ -5,7 +5,7 @@ import { calendarItems } from "@/lib/calendar/service";
 import { nicaraguaNow } from "@/lib/panel/upcoming";
 import { preachingErrorResponse } from "@/lib/preaching/http";
 import { canChangeDeparture, listSessionsForCalendar } from "@/lib/preaching/service";
-import { canAccessPreachingModule } from "@/lib/rbac/guards";
+import { canAccessPreachingModule, canManageDepartures } from "@/lib/rbac/guards";
 import { territoryMapKindsFor } from "@/lib/territories/mapAccess";
 
 // Módulo «Calendario» (web y app; ?month=AAAA-MM): cualquier persona con sesión. `preaching`: las salidas que le tocan a la persona
@@ -22,14 +22,15 @@ export async function GET(request: Request) {
 		const canManage = canAccessPreachingModule(session);
 		const db = getDb();
 		const now = nicaraguaNow();
-		const [sessions, items, mapKinds] = await Promise.all([
+		const [sessions, items, mapKinds, canDepart] = await Promise.all([
 			listSessionsForCalendar(db, session.userId, { month, all: canManage && params.get("all") === "1" }),
 			calendarItems(db, session.userId, month),
 			territoryMapKindsFor(db, session),
+			canManageDepartures(db, session),
 		]);
 		const preaching = sessions.map((s) => ({
 			...s,
-			territories: s.territories.map((t) => ({ ...t, canChangeDeparture: canChangeDeparture(s, t, session.userId, canManage, now) })),
+			territories: s.territories.map((t) => ({ ...t, canChangeDeparture: canChangeDeparture(s, t, session.userId, canDepart, now) })),
 		}));
 		return NextResponse.json({ month, items, preaching, canManage, mapKinds });
 	} catch (error) {

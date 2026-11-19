@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 		}
 
 		const db = getDb();
-		// Admin, el privilegio de registro de asistencia, el secretario o el acomodador de entrada de ESA reunión.
+		// Admin, el privilegio de registro de asistencia, el secretario o los acomodadores de entrada y de auditorio de ESA reunión.
 		if (!(await canRecordAttendanceFor(db, session, parsed.data.meetingType, parsed.data.meetingId))) {
 			throw new RbacError("Se requiere el privilegio de registro de asistencia (S-88).");
 		}

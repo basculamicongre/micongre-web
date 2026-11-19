@@ -414,8 +414,9 @@ export async function publishNotices(db: Database, sessionId: string, actorId: s
 	);
 }
 
-/** ¿Puede esta persona cambiar el punto de salida de ese territorio en la salida? Quien programa las salidas o el capitán (quien
- * tiene el territorio asignado), y solo antes de la salida o hasta 2 horas después de su hora. */
+/** ¿Puede esta persona cambiar el punto de salida de ese territorio en la salida? `canManage` = `canManageDepartures` (quien
+ * administra la predicación o los territorios, el secretario y el siervo de territorios: cualquier territorio); si no, solo el
+ * capitán (quien tiene el territorio asignado) el suyo. Y solo antes de la salida o hasta 2 horas después de su hora. */
 export function canChangeDeparture(view: Pick<SessionView, "date" | "time">, territory: Pick<SessionTerritory, "assigneeUserId" | "departures">, userId: string, canManage: boolean, now = nicaraguaNow()): boolean {
 	if (territory.departures.length < 2) return false;
 	if (!canManage && territory.assigneeUserId !== userId) return false;

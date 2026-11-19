@@ -5,7 +5,8 @@ import type { Session } from "@/lib/auth/session";
 import { FIELD_SERVICE_GROUP_APPOINTMENTS, PRIVILEGE_CODES, SERVICE_COMMITTEE_APPOINTMENTS } from "./roles";
 
 /** «Acomodador de entrada» (privilegio operativo sembrado en migrations/0005). */
-const USHER_ENTRANCE_PRIVILEGE_ID = "priv_usher_entrance";
+/** Acomodadores que pueden registrar la asistencia de la reunión en la que están asignados: entrada y auditorio. */
+const ATTENDANCE_USHER_PRIVILEGE_IDS = ["priv_usher_entrance", "priv_usher_auditorium"];
 import { getEligiblePublishers } from "./eligibility";
 import { RbacError } from "./errors";
 
@@ -110,8 +111,8 @@ export function assertCanRecordAttendance(session: Session | null): asserts sess
 	}
 }
 
-/** Asistencia de UNA reunión: además de lo anterior (admin o el privilegio), el secretario de la congregación y el acomodador de
- * entrada asignado a esa reunión (botón de asistencia de la pantalla de reuniones de la app). */
+/** Asistencia de UNA reunión: además de lo anterior (admin o el privilegio), el secretario de la congregación y los acomodadores de
+ * entrada y de auditorio asignados a esa reunión (botón de asistencia de la pantalla de reuniones de la app y de la web). */
 export async function canRecordAttendanceFor(
 	db: Database,
 	session: Session | null,
@@ -133,7 +134,7 @@ export async function canRecordAttendanceFor(
 				and(
 					eq(operationalSchedules.meetingType, meetingType),
 					eq(operationalSchedules.meetingId, meetingId),
-					eq(operationalSchedules.privilegeId, USHER_ENTRANCE_PRIVILEGE_ID),
+					inArray(operationalSchedules.privilegeId, ATTENDANCE_USHER_PRIVILEGE_IDS),
 					eq(operationalSchedules.assignedUserId, session.userId),
 				),
 			)
@@ -524,6 +525,28 @@ export async function getS21GroupScope(db: Database, session: Session | null): P
 /** Módulo Predicación: admin, «Administrar Predicación» (superintendente de servicio) o «Siervo de territorios» (las salidas usan sus territorios). El menú (navItems PREACHING_ITEM) usa la misma lista. */
 export function canAccessPreachingModule(session: Session | null): boolean {
 	return !!session && (session.role === "admin" || (session.privilegeCodes.includes(PRIVILEGE_CODES.PREACHING_ADMIN) || session.privilegeCodes.includes(PRIVILEGE_CODES.TERRITORY_MANAGEMENT)));
+}
+
+/**
+ * Puede cambiar el punto de salida de CUALQUIER territorio en una salida de predicación: quien administra la predicación o los
+ * territorios (admin, «Administrar predicación», «Administrar → Territorios»), el secretario y el siervo de territorios. El capitán
+ * (quien tiene asignado el territorio) solo el de su territorio: eso lo revisa `canChangeDeparture` / `changeDeparture`.
+ */
+export async function canManageDepartures(db: Database, session: Session | null): Promise<boolean> {
+	if (!session) return false;
+	if (canAccessPreachingModule(session)) return true;
+	const [row] = await db
+		.select({ id: theocraticAppointments.id })
+		.from(theocraticAppointments)
+		.where(
+			and(
+				eq(theocraticAppointments.userId, session.userId),
+				inArray(theocraticAppointments.appointmentType, ["secretary", "territory_servant"]),
+				isNull(theocraticAppointments.endDate),
+			),
+		)
+		.limit(1);
+	return !!row;
 }
 
 export function assertCanAccessPreachingModule(session: Session | null): asserts session is Session {

@@ -74,6 +74,9 @@ export interface PanelAssignment {
 	territoryIds?: string[];
 	when?: string;
 	nextSession?: string;
+	/** Territorio pendiente: fecha de su primera salida de predicación programada en esta asignación (Mi Panel lo muestra desde el
+	 * día antes, `territoryVisible`); sin salida, undefined. Solo del servidor. */
+	firstSessionDate?: string;
 	/** Predicación: territorio con mapa que la persona puede abrir (botón de mapa en Mi Panel). */
 	mapTerritoryId?: string;
 	/** Solo del servidor: territorios dibujados de la salida, antes de filtrar por lo que la persona puede ver. */
@@ -439,6 +442,27 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 		.innerJoin(territories, eq(territories.id, territoryAssignments.territoryId))
 		.where(eq(territoryAssignments.assigneeUserId, userId));
 
+	// Primera salida de predicación de cada territorio pendiente en esta asignación (la de `assignment_id`, o en las viejas sin él,
+	// una salida con ese territorio desde el día en que se asignó).
+	const pendingRows = territoryRows.filter((r) => r.status === "assigned");
+	const sessionRows: { territoryId: string; assignmentId: string | null; sessionDate: string }[] = [];
+	for (const ids of chunked([...new Set(pendingRows.map((r) => r.territoryId))], 90)) {
+		sessionRows.push(
+			...(await db
+				.select({ territoryId: preachingSessionTerritories.territoryId, assignmentId: preachingSessionTerritories.assignmentId, sessionDate: preachingSessions.sessionDate })
+				.from(preachingSessionTerritories)
+				.innerJoin(preachingSessions, eq(preachingSessions.id, preachingSessionTerritories.sessionId))
+				.where(inArray(preachingSessionTerritories.territoryId, ids))),
+		);
+	}
+	const firstSession = (row: (typeof territoryRows)[number]): string | undefined => {
+		const since = nicaraguaDate(row.assignedAt);
+		return sessionRows
+			.filter((s) => s.territoryId === row.territoryId && (s.assignmentId ? s.assignmentId === row.assignmentId : s.sessionDate >= since))
+			.map((s) => s.sessionDate)
+			.sort()[0];
+	};
+
 	for (const row of territoryRows) {
 		const title = territoryName(row.number, row.name);
 		const resolvedLabel = row.status === "completed" ? "completado" : "devuelto";
@@ -448,6 +472,7 @@ export async function getUserAssignments(db: Database, userId: string): Promise<
 			label: row.status === "assigned" ? title : `${title} (${resolvedLabel})`,
 			detail: row.meetingPlace?.trim() || undefined,
 			territory: { assignmentId: row.assignmentId, territoryId: row.territoryId, status: row.status, comment: row.comment },
+			firstSessionDate: row.status === "assigned" ? firstSession(row) : undefined,
 		});
 	}
 
