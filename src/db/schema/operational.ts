@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 import { privileges } from "./privileges";
 
@@ -24,12 +24,7 @@ export const operationalSchedules = sqliteTable(
 	(t) => [
 		index("op_sched_meeting_idx").on(t.meetingType, t.meetingId),
 		index("op_sched_user_idx").on(t.assignedUserId),
-		uniqueIndex("op_sched_unique_slot_idx").on(
-			t.meetingType,
-			t.meetingId,
-			t.privilegeId,
-			t.position,
-		),
+		// Sin índice único por (reunión, tarea, nombre): el mismo nombre puede repetirse (p. ej. dos «Entrada»; migrations/0087).
 	],
 );
 

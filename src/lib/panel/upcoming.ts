@@ -59,6 +59,15 @@ export function untilOf(a: Pick<PanelAssignment, "date" | "dateEnd" | "time" | "
 	return end.toISOString().slice(0, 16);
 }
 
+/** Un territorio pendiente sale en Mi Panel desde el día antes de su primera salida de predicación programada y sigue hasta que el
+ * capitán lo completa o lo devuelve; sin salida programada no sale. `today` = AAAA-MM-DD (Nicaragua). */
+export function territoryVisible(firstSessionDate: string | undefined, today: string): boolean {
+	if (!firstSessionDate) return false;
+	const d = new Date(`${today}T00:00:00Z`);
+	d.setUTCDate(d.getUTCDate() + 1);
+	return firstSessionDate <= d.toISOString().slice(0, 10);
+}
+
 /** Recibe las próximas (ya filtradas por fecha) y deja solo lo que sigue de cada tipo, en orden de fecha. */
 export function selectUpcoming(items: PanelAssignment[], w: UpcomingWindow): PanelAssignment[] {
 	const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""));
@@ -108,7 +117,7 @@ export function selectUpcoming(items: PanelAssignment[], w: UpcomingWindow): Pan
 
 	return out
 		.sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""))
-		.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, ...rest }) => {
+		.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, firstSessionDate: _f, ...rest }) => {
 			const until = untilOf({ ...rest, time: _time });
 			return until ? { ...rest, until } : rest;
 		});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOver, nicaraguaNow, selectUpcoming, untilOf } from "@/lib/panel/upcoming";
+import { isOver, nicaraguaNow, selectUpcoming, territoryVisible, untilOf } from "@/lib/panel/upcoming";
 import type { PanelAssignment } from "@/lib/queries/panel";
 
 const w = { today: "2026-11-03", weekStart: "2026-11-02", weekEnd: "2026-11-08" };
@@ -92,5 +92,16 @@ describe("untilOf", () => {
 		expect(untilOf({ date: "2026-11-05", time: "08:45", meetingType: "preaching" })).toBe("2026-11-05T10:45");
 		expect(untilOf({ date: "2026-11-05", time: "23:00", meetingType: "preaching" })).toBe("2026-11-06T01:00");
 		expect(untilOf({ date: "2026-11-05", meetingType: "cleaning" })).toBeUndefined();
+	});
+});
+
+describe("territorio pendiente en Mi Panel", () => {
+	it("sale desde el día antes de su primera salida y sigue después; sin salida, no sale", () => {
+		expect(territoryVisible("2026-11-20", "2026-11-18")).toBe(false);
+		expect(territoryVisible("2026-11-20", "2026-11-19")).toBe(true);
+		expect(territoryVisible("2026-11-20", "2026-11-20")).toBe(true);
+		expect(territoryVisible("2026-11-20", "2026-11-25")).toBe(true);
+		expect(territoryVisible("2026-12-01", "2026-11-30")).toBe(true);
+		expect(territoryVisible(undefined, "2026-11-18")).toBe(false);
 	});
 });

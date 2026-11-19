@@ -34,19 +34,6 @@ export function normalizePosition(position: string | null | undefined): string |
 
 const slotKey = (s: TemplateSlot) => `${s.privilegeId}|${normalizePosition(s.position) ?? ""}`;
 
-/** Un mismo privilegio con el mismo nombre de puesto no puede repetirse (la tabla de la reunión no lo admite);
- * sin nombre sí: así se piden «2 acomodadores de entrada». Devuelve la primera clave repetida o null. */
-export function findDuplicatePosition(slots: TemplateSlot[]): TemplateSlot | null {
-	const seen = new Set<string>();
-	for (const s of slots) {
-		if (!normalizePosition(s.position)) continue;
-		const k = slotKey(s);
-		if (seen.has(k)) return s;
-		seen.add(k);
-	}
-	return null;
-}
-
 /** Qué cambiar en una reunión para que coincida con la plantilla: se agregan los puestos que faltan y se quitan los que
  * sobran (o no están en la plantilla) solo si nadie los ocupa. Un puesto ocupado nunca se quita. */
 export function planSlotSync(template: TemplateSlot[], existing: ExistingSlot[]): { insert: TemplateSlot[]; remove: string[] } {

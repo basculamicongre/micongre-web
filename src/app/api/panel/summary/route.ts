@@ -16,7 +16,7 @@ import { errorResponse } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
 import { addDays, mondayOf, parseISODate, toISODate } from "@/lib/mwb/dates";
 import { territoryMapKindsFor } from "@/lib/territories/mapAccess";
-import { isOver, nicaraguaNow, selectUpcoming } from "@/lib/panel/upcoming";
+import { isOver, nicaraguaNow, selectUpcoming, territoryVisible } from "@/lib/panel/upcoming";
 import { time12 } from "@/lib/export/builders/meetingDates";
 import { getUserAssignments } from "@/lib/queries/panel";
 import { PRIVILEGE_CODES, SERVICE_COMMITTEE_APPOINTMENTS } from "@/lib/rbac/roles";
@@ -86,16 +86,16 @@ export async function GET() {
 			delete a.mapCandidates;
 		}
 
-		// Solo los próximos 30 días (una semana de limpieza profunda en curso cuenta).
-		// Próximas: solo lo de los siguientes 7 días (los territorios pendientes salen siempre).
-		const horizon = toISODate(addDays(parseISODate(today), 7));
-		// Un territorio pendiente se muestra hasta que el encargado lo resuelva,
-		// sin importar la fecha en que se le asignó; uno ya resuelto es historial.
+		// Próximas: solo lo de la semana en curso, hasta el domingo; el lunes empieza la semana siguiente (no «los próximos 7 días»).
+		const horizon = weekEnd;
+		// Un territorio pendiente sale desde el día antes de su primera salida de predicación y hasta que el encargado lo resuelva
+		// (`territoryVisible`); uno ya resuelto es historial.
 		const isPendingTerritory = (a: (typeof assignments)[number]) => a.territory?.status === "assigned";
+		const showTerritory = (a: (typeof assignments)[number]) => isPendingTerritory(a) && territoryVisible(a.firstSessionDate, today);
 		const isResolvedTerritory = (a: (typeof assignments)[number]) => !!a.territory && !isPendingTerritory(a);
 		// Solo lo que sigue de cada tipo (ver lib/panel/upcoming.ts).
 		const upcoming = selectUpcoming(
-			assignments.filter((a) => isPendingTerritory(a) || (!isResolvedTerritory(a) && !isOver(a, now) && a.date <= horizon)),
+			assignments.filter((a) => showTerritory(a) || (!a.territory && !isOver(a, now) && a.date <= horizon)),
 			{ today, weekStart, weekEnd },
 		);
 		// Historial: todo lo de los últimos 7 días, sin excepción (en Mi Panel se ve en gris).
@@ -108,7 +108,7 @@ export async function GET() {
 					(isResolvedTerritory(a) ? a.date >= historyFrom : isOver(a, now) && (a.dateEnd ?? a.date) >= historyFrom),
 			)
 			.reverse()
-			.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, ...rest }) => rest);
+			.map(({ bucket: _b, territoryIds: _t, when: _w, time: _time, nextSession: _n, firstSessionDate: _f, ...rest }) => rest);
 
 		let group = null;
 		if (me?.fieldServiceGroupId) {

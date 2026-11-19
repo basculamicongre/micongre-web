@@ -25,8 +25,10 @@ const KINDS: Kind[] = ["event", "meeting", "assignment", "preaching", "talk", "c
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
 
 interface Departure {
+	fid?: string;
 	name: string;
 	address: string | null;
+	isDefault?: boolean;
 }
 
 interface PreachingSession {
@@ -35,7 +37,16 @@ interface PreachingSession {
 	time: string;
 	note: string | null;
 	kind: "general" | "public_preaching";
-	territories: { id: string; number: string; name: string | null; meetingPlace: string | null; departure: Departure | null }[];
+	territories: {
+		id: string;
+		number: string;
+		name: string | null;
+		meetingPlace: string | null;
+		departure: Departure | null;
+		/** Puntos de salida del territorio y si quien consulta puede cambiar el de ese día (quien programa o el capitán, en plazo). */
+		departures?: Departure[];
+		canChangeDeparture?: boolean;
+	}[];
 	targets: { congregation: boolean; groups: { name: string }[]; users: { fullName: string }[] };
 }
 
@@ -264,15 +275,69 @@ function SessionDetail({ s }: { s: PreachingSession }) {
 			<p className="text-[13px] text-ink-soft">{who}</p>
 			{s.territories.map((t) => (
 				<div key={t.id} className="text-[13px]">
-					{t.departure && (
-						<p>
-							Salida{s.territories.length > 1 ? ` (${territoryName(t)})` : ""}: {t.departure.address ? `${t.departure.name} — ${t.departure.address}` : t.departure.name}
-						</p>
+					{t.canChangeDeparture && (t.departures?.length ?? 0) > 1 ? (
+						<DepartureChanger sessionId={s.id} territory={t} label={s.territories.length > 1 ? territoryName(t) : null} />
+					) : (
+						t.departure && (
+							<p>
+								Salida{s.territories.length > 1 ? ` (${territoryName(t)})` : ""}: {departureLabel(t.departure)}
+							</p>
+						)
 					)}
 					{t.meetingPlace && <p className="whitespace-pre-line text-ink-soft">{t.meetingPlace}</p>}
 				</div>
 			))}
 			{s.note && <p className="whitespace-pre-line text-[13px]">{s.note}</p>}
 		</div>
+	);
+}
+
+const departureLabel = (d: Departure) => (d.address ? `${d.name} — ${d.address}` : d.name);
+
+/** Quien programa la predicación o el capitán del territorio cambia el punto de salida de ese día entre los del territorio (antes de
+ * la salida o hasta 2 horas después; si ya se avisó, el servidor reenvía el aviso). */
+function DepartureChanger({ sessionId, territory, label }: { sessionId: string; territory: PreachingSession["territories"][number]; label: string | null }) {
+	const options = territory.departures ?? [];
+	const [value, setValue] = useState(territory.departure?.fid ?? options.find((d) => d.isDefault)?.fid ?? "");
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	async function change(fid: string) {
+		const previous = value;
+		setValue(fid);
+		setBusy(true);
+		setError(null);
+		const response = await fetch(`/api/preaching/${sessionId}/departure`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ territoryId: territory.id, fid }),
+		}).catch(() => null);
+		setBusy(false);
+		if (!response?.ok) {
+			const body = (await response?.json().catch(() => null)) as { error?: string } | null;
+			setValue(previous);
+			setError(body?.error === "departure_locked" ? "Ya no se puede cambiar: pasaron más de 2 horas desde la salida." : "No se pudo cambiar el punto de salida.");
+		}
+	}
+
+	const current = options.find((d) => d.fid === value);
+	return (
+		<label className="mt-1 flex flex-col gap-1">
+			<span className="text-xs font-semibold text-ink-soft">Punto de salida{label ? ` · ${label}` : ""}</span>
+			<select
+				value={value}
+				disabled={busy}
+				onChange={(e) => change(e.target.value)}
+				className="min-h-11 w-full max-w-md rounded-2xl border border-border bg-surface px-3 text-base text-ink disabled:opacity-60 sm:text-sm"
+			>
+				{options.map((d) => (
+					<option key={d.fid} value={d.fid}>
+						{d.name}
+					</option>
+				))}
+			</select>
+			{current?.address && <span className="text-ink-soft">{current.address}</span>}
+			{error && <span className="text-xs text-red-600">{error}</span>}
+		</label>
 	);
 }

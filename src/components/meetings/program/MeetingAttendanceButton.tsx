@@ -23,7 +23,7 @@ interface AttendanceItem {
 
 /**
  * Botón flotante para registrar la asistencia de la reunión que se ve: solo si el servidor dice que se puede (admin, registro de
- * asistencia, secretario o el acomodador de entrada de esa reunión). Abre un diálogo ya lleno con lo registrado.
+ * asistencia, secretario o los acomodadores de entrada y de auditorio de esa reunión). Abre un diálogo ya lleno con lo registrado.
  * `bottomClass` lo coloca arriba del reloj o de la barra del cronómetro.
  */
 export function MeetingAttendanceButton({ target, bottomClass }: { target: AttendanceTarget; bottomClass: string }) {
