@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Chip, ChipGroup, Fab, IconButton, List, PageHeader } from "@/components/ui/Layout";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoader } from "@/components/ui/Spinner";
+import { WhatsAppPreachingButtons } from "@/components/preaching/WhatsAppPreaching";
 import { TerritoryMapViewer } from "@/components/territories/TerritoryMapViewer";
 import { formatLongDate, formatShortDate } from "@/lib/dateFormat";
 import { TERRITORY_KIND_LABEL, departureText, type Departure, type TerritoryKind } from "@/lib/territories/geo";
@@ -180,7 +181,7 @@ export function PreachingModule() {
 
 	return (
 		<div className="flex flex-col gap-5">
-			<PageHeader title="Predicación" subtitle="Salidas a predicar sobre territorios ya asignados" />
+			<PageHeader title="Predicación" subtitle="Salidas a predicar sobre territorios ya asignados" actions={<WhatsAppPreachingButtons />} />
 
 			<ChipGroup>
 				{(
